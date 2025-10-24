@@ -62,7 +62,7 @@ export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScree
                     <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                     <h2 className="text-xl font-semibold mb-2">Account Created!</h2>
                     <p className="text-muted-foreground mb-4">Your account has been successfully created.</p>
-                    <Button onClick={onBackToLogin} classname="w-full">
+                    <Button onClick={onBackToLogin} className="w-full">
                         Back to Login
                     </Button>
                 </Card>
@@ -133,16 +133,11 @@ export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScree
                     </div>
 
                     <Button type="submit" className="w-full">
+                        Create Account
                     </Button>
                 </form>
 
             </Card>
         </div>
-                    
-                
-                        
-
-    )
-
-
+    );
 }
