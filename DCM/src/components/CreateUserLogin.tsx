@@ -44,7 +44,8 @@ export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScree
                 setConfirmPassword("");
             }
             else {
-                const savedUsers = JSON.parse(localStorage.getItem("users") || '[]');
+                // Look at the same persistent key the app uses
+                const savedUsers = JSON.parse(localStorage.getItem("dcm_users") || '[]');
                 if (savedUsers.length >= 10){
                     setError("User limit reached. Cannot create more users.");
                 }
