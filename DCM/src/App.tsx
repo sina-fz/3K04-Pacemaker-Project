@@ -132,9 +132,9 @@ export default function App() {
       setCurrentUser(username);
       setSelectedPatient(user.patientData);
       setIsLoggedIn(true);
-      return false;
+      return true;
     }
-    return true;
+    return false;
   };
 
   const handleCreateUser = (username: string, password: string): boolean => {

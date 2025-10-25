@@ -83,9 +83,8 @@ export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScree
                             <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div className="flex items-center gap-3">
-                        <Heart className="h-6 w-6 text-red-500" />
                         <div>
-                            <h1 className="text-xl font-bold">Register New Patient</h1>
+                            <h1 className="text-center text-xl font-bold">Register New Patient</h1>
                             <p className="text-sm text-muted-foreground">Create a new patient account</p>
                         </div>
                     </div>
