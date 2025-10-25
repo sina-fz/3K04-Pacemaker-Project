@@ -5,13 +5,13 @@ import { Badge } from "./components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Alert, AlertDescription } from "./components/ui/alert";
 import { Separator } from "./components/ui/separator";
-import { 
-  Heart, 
-  Users, 
-  Radio, 
-  Settings, 
-  Activity, 
-  FileText, 
+import {
+  Heart,
+  Users,
+  Radio,
+  Settings,
+  Activity,
+  FileText,
   Info,
   AlertTriangle,
   Wifi,
@@ -20,7 +20,7 @@ import {
   Battery,
   Clock,
   Cpu,
-  Hash
+  Hash,
 } from "lucide-react";
 
 // Import all our components
@@ -42,7 +42,7 @@ interface Patient {
     model: string;
     serialNumber: string;
     lastInterrogation: string;
-    batteryStatus: 'BOL' | 'ERN' | 'ERT' | 'ERP';
+    batteryStatus: "BOL" | "ERN" | "ERT" | "ERP";
     isConnected: boolean;
   };
   parameters?: {
@@ -65,8 +65,8 @@ export default function App() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState("connection");
   const [telemetryState, setTelemetryState] = useState({
-    connectionState: 'Lost' as 'Connected' | 'Out of Range' | 'Noise' | 'Lost',
-    isConnecting: false
+    connectionState: "Lost" as "Connected" | "Out of Range" | "Noise" | "Lost",
+    isConnecting: false,
   });
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -82,28 +82,28 @@ export default function App() {
 
   // Load saved users from localStorage with default patient accounts
   const [savedUsers, setSavedUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('dcm_users');
+    const saved = localStorage.getItem("dcm_users");
     if (saved) {
       return JSON.parse(saved);
     }
     // Default patient accounts
     return [
       {
-        username: 'john.doe',
-        password: 'patient123',
+        username: "john.doe",
+        password: "patient123",
         accountNumber: 1,
-        createdAt: '2024-01-01T08:00:00.000Z',
+        createdAt: "2024-01-01T08:00:00.000Z",
         patientData: {
-          id: '1',
-          name: 'John Doe',
-          dateOfBirth: '1965-03-15',
-          patientId: 'P001234',
+          id: "1",
+          name: "John Doe",
+          dateOfBirth: "1965-03-15",
+          patientId: "P001234",
           device: {
-            model: 'Medtronic Advisor XL DR',
-            serialNumber: 'ABC123456789',
-            lastInterrogation: '2024-01-15 14:30',
-            batteryStatus: 'BOL' as const,
-            isConnected: true
+            model: "Medtronic Advisor XL DR",
+            serialNumber: "ABC123456789",
+            lastInterrogation: "2024-01-15 14:30",
+            batteryStatus: "BOL" as const,
+            isConnected: true,
           },
           parameters: {
             lowerRateLimit: 60,
@@ -115,60 +115,60 @@ export default function App() {
             atrialSensitivity: 0.5,
             ventricularSensitivity: 2.5,
             vrp: 320,
-            arp: 250
-          }
-        }
+            arp: 250,
+          },
+        },
       },
       {
-        username: 'mary.johnson',
-        password: 'patient456',
+        username: "mary.johnson",
+        password: "patient456",
         accountNumber: 2,
-        createdAt: '2024-01-02T10:30:00.000Z',
+        createdAt: "2024-01-02T10:30:00.000Z",
         patientData: {
-          id: '2', 
-          name: 'Mary Johnson',
-          dateOfBirth: '1972-08-22',
-          patientId: 'P001235',
+          id: "2",
+          name: "Mary Johnson",
+          dateOfBirth: "1972-08-22",
+          patientId: "P001235",
           device: {
-            model: 'Boston Scientific Accolade MRI',
-            serialNumber: 'DEF987654321',
-            lastInterrogation: '2024-01-10 09:15',
-            batteryStatus: 'ERN' as const,
-            isConnected: false
-          }
-        }
+            model: "Boston Scientific Accolade MRI",
+            serialNumber: "DEF987654321",
+            lastInterrogation: "2024-01-10 09:15",
+            batteryStatus: "ERN" as const,
+            isConnected: false,
+          },
+        },
       },
       {
-        username: 'robert.wilson',
-        password: 'patient789',
+        username: "robert.wilson",
+        password: "patient789",
         accountNumber: 3,
-        createdAt: '2024-01-03T14:15:00.000Z',
+        createdAt: "2024-01-03T14:15:00.000Z",
         patientData: {
-          id: '3',
-          name: 'Robert Wilson',
-          dateOfBirth: '1958-12-03',
-          patientId: 'P001236',
+          id: "3",
+          name: "Robert Wilson",
+          dateOfBirth: "1958-12-03",
+          patientId: "P001236",
           device: {
-            model: 'Abbott Assurity MRI',
-            serialNumber: 'GHI555666777',
-            lastInterrogation: '2024-01-08 16:45',
-            batteryStatus: 'ERT' as const,
-            isConnected: false
-          }
-        }
-      }
+            model: "Abbott Assurity MRI",
+            serialNumber: "GHI555666777",
+            lastInterrogation: "2024-01-08 16:45",
+            batteryStatus: "ERT" as const,
+            isConnected: false,
+          },
+        },
+      },
     ];
   });
 
   // Save users to localStorage whenever savedUsers changes
   useEffect(() => {
-    localStorage.setItem('dcm_users', JSON.stringify(savedUsers));
+    localStorage.setItem("dcm_users", JSON.stringify(savedUsers));
   }, [savedUsers]);
 
   // Auto-select the current user's patient data when logged in
   useEffect(() => {
     if (isLoggedIn && currentUser) {
-      const user = savedUsers.find(u => u.username === currentUser);
+      const user = savedUsers.find((u) => u.username === currentUser);
       if (user) {
         setSelectedPatient(user.patientData);
       }
@@ -176,7 +176,9 @@ export default function App() {
   }, [isLoggedIn, currentUser, savedUsers]);
 
   const handleLogin = (username: string, password: string): boolean => {
-    const user = savedUsers.find(u => u.username === username && u.password === password);
+    const user = savedUsers.find(
+      (u) => u.username === username && u.password === password
+    );
     if (user) {
       setCurrentUser(username);
       setSelectedPatient(user.patientData);
@@ -187,30 +189,30 @@ export default function App() {
   };
 
   const handleCreateUser = (username: string, password: string): boolean => {
-    if (savedUsers.find(u => u.username === username)) {
+    if (savedUsers.find((u) => u.username === username)) {
       return false; // User already exists
     }
     if (savedUsers.length >= 10) {
       return false; // Maximum 10 accounts
     }
-    
+
     const accountNumber = savedUsers.length + 1;
-    const newUser: User = { 
-      username, 
+    const newUser: User = {
+      username,
       password,
       accountNumber,
       createdAt: new Date().toISOString(),
       patientData: {
         id: String(accountNumber),
         name: username, // Use username as display name
-        dateOfBirth: '',
-        patientId: `P00${String(accountNumber).padStart(4, '0')}`,
+        dateOfBirth: "",
+        patientId: `P00${String(accountNumber).padStart(4, "0")}`,
         device: {
-          model: 'Unknown Device',
-          serialNumber: 'N/A',
-          lastInterrogation: 'Never',
-          batteryStatus: 'BOL',
-          isConnected: false
+          model: "Unknown Device",
+          serialNumber: "N/A",
+          lastInterrogation: "Never",
+          batteryStatus: "BOL",
+          isConnected: false,
         },
         parameters: {
           lowerRateLimit: 60,
@@ -222,11 +224,11 @@ export default function App() {
           atrialSensitivity: 0.5,
           ventricularSensitivity: 2.5,
           vrp: 320,
-          arp: 250
-        }
-      }
+          arp: 250,
+        },
+      },
     };
-    setSavedUsers(prev => [...prev, newUser]);
+    setSavedUsers((prev) => [...prev, newUser]);
     return true;
   };
 
@@ -234,14 +236,16 @@ export default function App() {
     if (!selectedPatient || !currentUser) return;
 
     // Update the user's patient data with new parameters
-    setSavedUsers(prev => prev.map(user => 
-      user.username === currentUser 
-        ? { ...user, patientData: { ...user.patientData, parameters } }
-        : user
-    ));
+    setSavedUsers((prev) =>
+      prev.map((user) =>
+        user.username === currentUser
+          ? { ...user, patientData: { ...user.patientData, parameters } }
+          : user
+      )
+    );
 
     // Update the selected patient with new parameters
-    setSelectedPatient(prev => prev ? { ...prev, parameters } : null);
+    setSelectedPatient((prev) => (prev ? { ...prev, parameters } : null));
   };
 
   const handleLogout = () => {
@@ -252,20 +256,20 @@ export default function App() {
   };
 
   const handleConnect = () => {
-    setTelemetryState(prev => ({ ...prev, isConnecting: true }));
+    setTelemetryState((prev) => ({ ...prev, isConnecting: true }));
     // Simulate connection process
     setTimeout(() => {
       setTelemetryState({
-        connectionState: 'Connected',
-        isConnecting: false
+        connectionState: "Connected",
+        isConnecting: false,
       });
     }, 2000);
   };
 
   const handleDisconnect = () => {
     setTelemetryState({
-      connectionState: 'Lost',
-      isConnecting: false
+      connectionState: "Lost",
+      isConnecting: false,
     });
   };
 
@@ -273,7 +277,7 @@ export default function App() {
     handleConnect();
   };
 
-  const isConnected = telemetryState.connectionState === 'Connected';
+  const isConnected = telemetryState.connectionState === "Connected";
 
   // Show login screen if not logged in
   if (!isLoggedIn) {
@@ -301,25 +305,27 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-xl font-semibold">My Pacemaker Monitor</h1>
-              <p className="text-sm text-muted-foreground">Personal Device Management Portal</p>
+              <p className="text-sm text-muted-foreground">
+                Personal Device Management Portal
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium">{currentUser}</p>
               <p className="text-xs text-muted-foreground">
-                {currentTime.toLocaleTimeString('en-US', { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true 
+                {currentTime.toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
                 })}
               </p>
             </div>
-            
+
             <Separator orientation="vertical" className="h-8" />
-            
+
             <div className="flex items-center gap-2">
               {isConnected ? (
                 <Wifi className="h-5 w-5 text-green-600" />
@@ -330,7 +336,7 @@ export default function App() {
                 {telemetryState.connectionState}
               </Badge>
             </div>
-            
+
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-1" />
               Logout
@@ -338,8 +344,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
-
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-4rem)]">
@@ -354,7 +358,7 @@ export default function App() {
               <Radio className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="truncate">Device Connection</span>
             </Button>
-            
+
             <Button
               variant={activeTab === "parameters" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
@@ -363,7 +367,7 @@ export default function App() {
               <Settings className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="truncate">My Parameters</span>
             </Button>
-            
+
             <Button
               variant={activeTab === "egm" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
@@ -372,7 +376,7 @@ export default function App() {
               <Activity className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="truncate">Electrogram</span>
             </Button>
-            
+
             <Button
               variant={activeTab === "reports" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
@@ -381,9 +385,9 @@ export default function App() {
               <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="truncate">My Reports</span>
             </Button>
-            
+
             <Separator className="my-2" />
-            
+
             <Button
               variant={activeTab === "about" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
@@ -402,89 +406,140 @@ export default function App() {
               <div className="space-y-6">
                 {/* User Account Information */}
                 {(() => {
-                  const currentUserData = savedUsers.find(u => u.username === currentUser);
+                  const currentUserData = savedUsers.find(
+                    (u) => u.username === currentUser
+                  );
                   const getBatteryStatusColor = (status: string) => {
                     switch (status) {
-                      case 'BOL':
-                        return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/20 dark:text-green-400 dark:border-green-800';
-                      case 'ERN':
-                        return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-800';
-                      case 'ERT':
-                        return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-800';
-                      case 'ERP':
-                        return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/20 dark:text-red-400 dark:border-red-800';
+                      case "BOL":
+                        return "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/20 dark:text-green-400 dark:border-green-800";
+                      case "ERN":
+                        return "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-800";
+                      case "ERT":
+                        return "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-800";
+                      case "ERP":
+                        return "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/20 dark:text-red-400 dark:border-red-800";
                       default:
-                        return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-950/20 dark:text-gray-400 dark:border-gray-800';
+                        return "bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-950/20 dark:text-gray-400 dark:border-gray-800";
                     }
                   };
 
                   const getBatteryStatusText = (status: string) => {
                     switch (status) {
-                      case 'BOL':
-                        return 'Beginning of Life';
-                      case 'ERN':
-                        return 'Elective Replacement Needed';
-                      case 'ERT':
-                        return 'Elective Replacement Time';
-                      case 'ERP':
-                        return 'End of Replacement Period';
+                      case "BOL":
+                        return "Beginning of Life";
+                      case "ERN":
+                        return "Elective Replacement Needed";
+                      case "ERT":
+                        return "Elective Replacement Time";
+                      case "ERP":
+                        return "End of Replacement Period";
                       default:
                         return status;
                     }
                   };
 
-                  return currentUserData && (
-                    <Card className="w-full">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Account & Device Information
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* User Information */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Username</p>
-                            <p className="font-medium">{currentUserData.username}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Account Created</p>
-                            <p className="font-medium">{new Date(currentUserData.createdAt).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Device Information */}
-                        <div className="space-y-4">
+                  return (
+                    currentUserData && (
+                      <Card className="w-full">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Account & Device Information
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* User Information */}
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <p className="text-sm text-muted-foreground mb-1">Device Model</p>
-                              <p className="font-medium">{currentUserData.patientData.device.model}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Username
+                              </p>
+                              <p className="font-medium">
+                                {currentUserData.username}
+                              </p>
                             </div>
                             <div>
-                              <p className="text-sm text-muted-foreground mb-1">Serial Number</p>
-                              <p className="font-medium font-mono text-sm text-[16px] font-bold">{currentUserData.patientData.device.serialNumber}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Account Created
+                              </p>
+                              <p className="font-medium">
+                                {new Date(
+                                  currentUserData.createdAt
+                                ).toLocaleDateString()}
+                              </p>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Battery Status</p>
-                              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border ${getBatteryStatusColor(currentUserData.patientData.device.batteryStatus)}`}>
-                                <span className="font-mono font-semibold">{currentUserData.patientData.device.batteryStatus}</span>
-                                <span className="text-xs">({getBatteryStatusText(currentUserData.patientData.device.batteryStatus)})</span>
+                          <Separator />
+
+                          {/* Device Information */}
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Device Model
+                                </p>
+                                <p className="font-medium">
+                                  {currentUserData.patientData.device.model}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Serial Number
+                                </p>
+                                <p className="font-medium font-mono text-sm text-[16px] font-bold">
+                                  {
+                                    currentUserData.patientData.device
+                                      .serialNumber
+                                  }
+                                </p>
                               </div>
                             </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Last Interrogation</p>
-                              <p className="font-medium">{currentUserData.patientData.device.lastInterrogation}</p>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Battery Status
+                                </p>
+                                <div
+                                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border ${getBatteryStatusColor(
+                                    currentUserData.patientData.device
+                                      .batteryStatus
+                                  )}`}
+                                >
+                                  <span className="font-mono font-semibold">
+                                    {
+                                      currentUserData.patientData.device
+                                        .batteryStatus
+                                    }
+                                  </span>
+                                  <span className="text-xs">
+                                    (
+                                    {getBatteryStatusText(
+                                      currentUserData.patientData.device
+                                        .batteryStatus
+                                    )}
+                                    )
+                                  </span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Last Interrogation
+                                </p>
+                                <p className="font-medium">
+                                  {
+                                    currentUserData.patientData.device
+                                      .lastInterrogation
+                                  }
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    )
                   );
                 })()}
 
@@ -498,37 +553,37 @@ export default function App() {
                 />
               </div>
             )}
-            
+
             {activeTab === "parameters" && selectedPatient && (
               <div className="min-h-screen">
-                <ParametersTable 
+                <ParametersTable
                   selectedPatient={selectedPatient}
                   onParametersSaved={handleParametersSaved}
                 />
               </div>
             )}
-            
-            {activeTab === "egm" && selectedPatient && (
-              <EGMViewer />
-            )}
-            
-            {activeTab === "reports" && selectedPatient && (
-              <ReportsPanel />
-            )}
-            
+
+            {activeTab === "egm" && selectedPatient && <EGMViewer />}
+
+            {activeTab === "reports" && selectedPatient && <ReportsPanel />}
+
             {activeTab === "about" && (
-              <AboutUtilities 
+              <AboutUtilities
                 savedUsers={savedUsers}
                 onDeleteUser={(username) => {
-                  setSavedUsers(prev => prev.filter(user => user.username !== username));
+                  setSavedUsers((prev) =>
+                    prev.filter((user) => user.username !== username)
+                  );
                 }}
               />
             )}
-            
+
             {!selectedPatient && activeTab !== "about" && (
               <Card className="p-8 text-center">
                 <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">Loading Your Device Data</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  Loading Your Device Data
+                </h3>
                 <p className="text-muted-foreground mb-4">
                   Please wait while we load your pacemaker information.
                 </p>
