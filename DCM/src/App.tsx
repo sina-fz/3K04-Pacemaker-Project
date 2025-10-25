@@ -72,7 +72,9 @@ export default function App() {
   }, []);
 
   const [savedUsers, setSavedUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem("dcm_user");
+    // Load previously saved users from localStorage
+    // Use a consistent key name: 'dcm_users'
+    const saved = localStorage.getItem("dcm_users");
     if (saved) {
       return JSON.parse(saved);
     }
@@ -132,9 +134,9 @@ export default function App() {
       setCurrentUser(username);
       setSelectedPatient(user.patientData);
       setIsLoggedIn(true);
-      return false;
+      return true;
     }
-    return true;
+    return false;
   };
 
   const handleCreateUser = (username: string, password: string): boolean => {
