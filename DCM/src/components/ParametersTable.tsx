@@ -544,6 +544,31 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     setHasChanges(true);
   };
 
+  // Save parameters to localStorage
+  const saveToLocalStorage = (patientId: string, params: any) => {
+    try {
+      // Get existing saved parameters or initialize empty object
+      const savedParams = JSON.parse(localStorage.getItem('pacemakerParameters') || '{}');
+      
+      // Add timestamp for reporting
+      const parameterData = {
+        timestamp: new Date().toISOString(),
+        mode: selectedMode,
+        values: params
+      };
+
+      // Save under patient ID with history
+      if (!savedParams[patientId]) {
+        savedParams[patientId] = [];
+      }
+      savedParams[patientId].push(parameterData);
+      
+      localStorage.setItem('pacemakerParameters', JSON.stringify(savedParams));
+    } catch (error) {
+      console.error('Error saving parameters to localStorage:', error);
+    }
+  };
+
   const handleSaveChanges = () => {
     // Prevent saving if there are any invalid parameters
     if (!canSave || invalidCount > 0) return;
@@ -553,9 +578,30 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
       return acc;
     }, {} as any);
     
-  onParameterSaved(parameterValues);
+    // Save to localStorage with patient ID
+    if (selectedPatient?.id) {
+      saveToLocalStorage(selectedPatient.id, parameterValues);
+    }
+    
+    onParameterSaved(parameterValues);
     setParameters(prev => prev.map(p => ({ ...p, isDirty: false })));
     setHasChanges(false);
+  };
+  
+  // Helper functions for reports
+  const getParameterHistory = (patientId: string) => {
+    try {
+      const savedParams = JSON.parse(localStorage.getItem('pacemakerParameters') || '{}');
+      return savedParams[patientId] || [];
+    } catch (error) {
+      console.error('Error getting parameter history:', error);
+      return [];
+    }
+  };
+
+  const getLatestParameters = (patientId: string) => {
+    const history = getParameterHistory(patientId);
+    return history.length > 0 ? history[history.length - 1] : null;
   };
 
   const handleSendToPacemaker = () => {

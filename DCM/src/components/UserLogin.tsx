@@ -11,10 +11,7 @@ interface LoginScreenProps {
   onNavigateToCreateUser: () => void;
 }
 
-export function UserLogin({
-  onLogin,
-  onNavigateToCreateUser,
-}: LoginScreenProps) {
+export function UserLogin({onLogin, onNavigateToCreateUser}: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +36,7 @@ export function UserLogin({
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md pp-8">
+      <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <div className="text-center mb-4">
             <h1 className="text-2xl font-semi">DCM Login</h1>
@@ -83,16 +80,24 @@ export function UserLogin({
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground mb-2">
-            Don't have an account?
-          </p>
-          <Button
-            variant="outline"
-            onClick={onNavigateToCreateUser}
-            className="w-full"
-          >
-            Create Account
-          </Button>
+            <p className="text-sm text-muted-foreground mb-2">
+                Don't have an account?
+            </p>
+            <Button
+                variant="outline"
+                onClick={onNavigateToCreateUser}
+                className="w-full"
+            >
+                Create Account
+            </Button>
+        </div>
+
+        <div className="mt-6 p-4 bg-muted rounded-lg">
+            <p className="text-xs text-muted-foreground text-center">
+                Clinical Pacemaker Management System
+                <br />
+                3K04
+            </p>
         </div>
       </Card>
     </div>
