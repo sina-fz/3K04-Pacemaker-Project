@@ -297,7 +297,7 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* Sidebar Navigation */}
+        {/* Sidebar Navigation: STARTS*/}
         <aside className="w-64 border-r bg-card">
           <nav className="p-4 space-y-2">
             <Button
@@ -314,7 +314,7 @@ export default function App() {
               className="w-full justify-start min-w-0"
               onClick={() => setActiveTab("parameters")}
             >
-              <Settings className="mr-2 h-4 w-4 flex-shrink-0" />
+              <Settings className="mr-2 h-100 w-4 flex-shrink-0" />
               <span className="truncate">My Parameters</span>
             </Button>
 
@@ -349,6 +349,7 @@ export default function App() {
           </nav>
         </aside>
       </div>
+      {/* Sidebar Navigation: ENDS */}
     </div>
   );
 }
