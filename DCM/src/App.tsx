@@ -83,7 +83,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center ">
             <div className="text-right">
               <p className="text-sm font-medium"> **Change to User Name**</p>
             </div>
