@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-
+import { Separator } from "./components/ui/separator";
 // Keep only the login components the user implemented
 import { UserLogin } from "./components/UserLogin";
 import { CreateUserLogin } from "./components/CreateUserLogin";
@@ -24,7 +24,14 @@ interface User {
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   // Minimal login handler: the UserLogin component controls validation; here we
   // just mark logged in when the component reports success.
   const handleLogin = (username: string, password: string): boolean => {
@@ -86,10 +93,25 @@ export default function App() {
           <div className="flex items-center ">
             <div className="text-right">
               <p className="text-sm font-medium"> **Change to User Name**</p>
+              <p className="text-xs text-muted-foreground">
+                {currentTime.toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })}
+              </p>
             </div>
+            <Separator orientation="vertical" className="h-8" />
+            <div className="flex items-center gap-2"></div>
+            {/* <Button variant="outline" size="sm" >
+              Logout
+            </Button> */}
           </div>
         </div>
       </header>
+      {/* Main Content */}
+      <div className="flex h-[calc(100vh-4rem)]"></div>
     </div>
   );
 }
