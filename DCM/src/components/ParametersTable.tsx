@@ -564,8 +564,13 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
       savedParams[patientId].push(parameterData);
       
       localStorage.setItem('pacemakerParameters', JSON.stringify(savedParams));
+      
+      console.log('✅ Parameters saved successfully!');
+      console.log('Patient ID:', patientId);
+      console.log('Saved data:', parameterData);
+      console.log('Full storage:', savedParams);
     } catch (error) {
-      console.error('Error saving parameters to localStorage:', error);
+      console.error('❌ Error saving parameters to localStorage:', error);
     }
   };
 

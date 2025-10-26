@@ -8,32 +8,35 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ScrollArea } from "./ui/scroll-area";
-import { FileText, Printer, Download, Eye, Calendar, Building, User, Edit } from "lucide-react";
+import { FileText, Printer, Download, Eye, Calendar, Building, User, Edit, RefreshCw } from "lucide-react";
 
 interface Report {
     id: string;
     name: string;
     description: string;
-    type: 'parameter' | 'status' | 'diagnostic';
+    type: 'diagnostic' | 'parameter' | 'session' | 'trending';
+    lastGenerated?: string;
+    isAvailable: boolean;
 }
 
-const avaliableReports: Report[] = [
-    { id: 'bradycardia', name: 'Bradycardia Parameter Report', description: 'Comprehensive pacing data and statistics', type: 'parameter'},
-    { id: 'temporary', name: 'Temporary Parameters', description: 'Current session parameter changes', type: 'parameter'},
-    { id: 'implant', name: 'Implant Data Report', description: 'Device specifications and implant information', type: 'status'},
-    { id: 'threshold', name: 'Threshold Test Report', description: 'Capture threshold test results', type: 'parameter'},
-    { id: 'measured', name: 'Measured Data Report', description: 'Lead impedance and sensor data', type: 'status'},
-    { id: 'markers', name: 'Marker Legend', description: 'EGM event marker reference', type: 'status'},
-    { id: 'session', name: 'Session Net Change', description: 'Summary of parameter modifications', type: 'status'},
-    { id: 'final', name: 'Final Report', description: 'Complete session summary', type: 'status'},
-    { id: 'histogram', name: 'Histogram Report', description: 'Rate histogram data and analysis', type: 'diagnostic'},
-    { id: 'trending', name: 'Trending Report', description: 'Long-term rate and activity trends', type: 'diagnostic'}
+const availableReports: Report[] = [
+    { id: 'bradycardia', name: 'Bradycardia Report', description: 'Comprehensive pacing data and statistics', type: 'diagnostic', isAvailable: true },
+    { id: 'temporary', name: 'Temporary Parameters', description: 'Current session parameter changes', type: 'parameter', isAvailable: true },
+    { id: 'implant', name: 'Implant Data Report', description: 'Device specifications and implant information', type: 'diagnostic', isAvailable: true },
+    { id: 'threshold', name: 'Threshold Test Report', description: 'Capture threshold test results', type: 'diagnostic', isAvailable: true },
+    { id: 'measured', name: 'Measured Data Report', description: 'Lead impedance and sensor data', type: 'diagnostic', isAvailable: true },
+    { id: 'markers', name: 'Marker Legend', description: 'EGM event marker reference', type: 'session', isAvailable: true },
+    { id: 'session', name: 'Session Net Change', description: 'Summary of parameter modifications', type: 'session', isAvailable: true },
+    { id: 'final', name: 'Final Report', description: 'Complete session summary', type: 'session', isAvailable: true },
+    { id: 'histogram', name: 'Histogram Report', description: 'Rate histogram data and analysis', type: 'trending', isAvailable: true },
+    { id: 'trending', name: 'Trending Report', description: 'Long-term rate and activity trends', type: 'trending', isAvailable: true }
 ];
 
-const reportTypeColors = {
+const reportTypeColors: Record<Report['type'], string> = {
     diagnostic: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
     parameter: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    status: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    session: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    trending: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
 };
 
 export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
@@ -41,29 +44,33 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
     const [previewReport, setPreviewReport] = useState<Report | null>(null);
     const [isEditingHeader, setIsEditingHeader] = useState(false);
     const [headerInfo, setHeaderInfo] = useState({
-        instution: 'McMaster University Hospital',
-        date: 'date',
-        deviceInfo: 'info placeholder',
-        dcmInfo: 'info placeholder',
+        institution: 'Cardiology Associates',
+        clinician: 'Dr. Sarah Johnson',
+        sessionDate: new Date().toLocaleString(),
+        dcmInfo: 'S/N: DCM-2024-001, v2.1.5',
     });
     const [patientHistory, setPatientHistory] = useState<any[]>([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
     const toggleReportSelection = (reportId: string) => {
-        setSelectedReports(prev => 
-            prev.includes(reportId) ? prev.filter(id => id !== reportId) : [...prev, reportId]
-        );
-    };      
-    
-    // Get history for a patient
+        setSelectedReports(prev => prev.includes(reportId) ? prev.filter(id => id !== reportId) : [...prev, reportId]);
+    };
+
+    // Get history for a patient (persists from ParametersTable saves)
     const loadPatientHistory = (id: string) => {
         try {
             const raw = localStorage.getItem('pacemakerParameters');
-            if (!raw) {
-                setPatientHistory([]);
-                return;
+            if (!raw) { 
+                console.log('no pacemakerParameters found in localStorage');
+                setPatientHistory([]); 
+                return; 
             }
             const parsed = JSON.parse(raw || '{}');
             const hist = parsed[id] || [];
+            console.log('Loading patient history for ID:', id);
+            console.log('History entries found:', hist.length);
+            console.log('History data:', hist);
             setPatientHistory(hist);
         } catch (e) {
             console.error('Error reading patient history', e);
@@ -71,142 +78,371 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
         }
     };
 
-    // Preview helper: pass headerInfo with savedParameters if available
-    const handlePreview = (report: Report) => {
-        setPreviewReport(report);
-    };
-
-    // Download latest parameters for current selected patient
-    const downloadLatestForCurrentPatient = () => {
+    const getLatestForPatient = () => {
+        // Prefer in-memory history if available
+        if (patientHistory.length > 0) {
+            const latest = patientHistory[patientHistory.length - 1];
+            return { timestamp: latest.timestamp as string | undefined, values: latest.values };
+        }
+        // Fallback: read directly from localStorage using current patient id
         try {
             const id = selectedPatient?.id;
-            if (!id) return;
+            if (!id) return { timestamp: undefined as string | undefined, values: undefined as any };
             const raw = localStorage.getItem('pacemakerParameters');
-            if (!raw) return;
+            if (!raw) return { timestamp: undefined as string | undefined, values: undefined as any };
             const parsed = JSON.parse(raw || '{}');
             const hist = parsed[id] || [];
-            if (!hist.length) return;
+            if (!hist.length) return { timestamp: undefined as string | undefined, values: undefined as any };
             const latest = hist[hist.length - 1];
-            const blob = new Blob([JSON.stringify(latest, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${id}_latest_parameters.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            console.error('Error downloading latest parameters', e);
+            return { timestamp: latest.timestamp as string | undefined, values: latest.values };
+        } catch {
+            return { timestamp: undefined as string | undefined, values: undefined as any };
         }
     };
 
-    // load history when selected patient changes
+    const handleRefreshParameters = () => {
+        const id = selectedPatient?.id;
+        console.log('🔄 Refresh clicked - Patient ID:', id);
+        if (!id) {
+            console.log('⚠️ No patient ID available');
+            return;
+        }
+        setIsRefreshing(true);
+        try {
+            loadPatientHistory(id);
+            setLastRefreshedAt(new Date().toLocaleTimeString());
+            console.log('✅ Refresh completed');
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    const handlePrintSelected = () => {
+        // Simple print: open new window with concatenated report content
+        const { values, timestamp } = getLatestForPatient();
+        const win = window.open('', '_blank');
+        if (!win) return;
+        const content = selectedReports.map(id => {
+            const r = availableReports.find(ar => ar.id === id)!;
+            return generateReportContent(r, {
+                institution: headerInfo.institution,
+                instution: headerInfo.institution,
+                date: timestamp || new Date().toISOString(),
+                deviceInfo: '',
+                dcmInfo: headerInfo.dcmInfo,
+                parameters: values,
+                patientId: selectedPatient?.id,
+            });
+        }).join('\n\n---\n\n');
+        win.document.write(`<pre>${content.replace(/</g, '&lt;')}</pre>`);
+        win.document.close();
+        win.focus();
+        win.print();
+    };
+
+    const handleExportSelected = () => {
+        const { values, timestamp } = getLatestForPatient();
+        selectedReports.forEach(id => {
+            const r = availableReports.find(ar => ar.id === id)!;
+            outputReport(r, {
+                institution: headerInfo.institution,
+                instution: headerInfo.institution,
+                date: timestamp || new Date().toISOString(),
+                deviceInfo: '',
+                dcmInfo: headerInfo.dcmInfo,
+                parameters: values,
+                patientId: selectedPatient?.id,
+            });
+        });
+    };
+
+    // Load history when selected patient changes
     useEffect(() => {
         const id = selectedPatient?.id;
-        if (id) loadPatientHistory(id);
-        else setPatientHistory([]);
+        if (id) loadPatientHistory(id); else setPatientHistory([]);
     }, [selectedPatient]);
+
+    const latestTimestamp = getLatestForPatient().timestamp;
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Available Reports</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            {avaliableReports.map(r => (
-                                <div key={r.id} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox checked={selectedReports.includes(r.id)} onCheckedChange={() => toggleReportSelection(r.id)} />
-                                        <div>
-                                            <div className="font-medium">{r.name}</div>
-                                            <div className="text-xs text-gray-500">{r.description}</div>
-                                        </div>
-                                    </div>
-                                    <Badge className={reportTypeColors[r.type]}>{r.type}</Badge>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Current Patient</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            <div className="text-sm">Patient ID</div>
-                            <div className="font-medium">{selectedPatient?.id ?? 'No patient selected'}</div>
-                            <div className="flex gap-2 mt-2">
-                                <Button onClick={() => { if (selectedPatient?.id) loadPatientHistory(selectedPatient.id); }}>Load History</Button>
-                                <Button onClick={() => { downloadLatestForCurrentPatient(); }} disabled={!selectedPatient?.id}>Download Latest</Button>
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            Available Reports
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                            <div className="hidden md:flex items-center text-xs text-muted-foreground mr-2">
+                                {getLatestForPatient().timestamp ? (
+                                    <span>Latest parameters: {new Date(getLatestForPatient().timestamp!).toLocaleString()}</span>
+                                ) : (
+                                    <span>No saved parameters for this patient</span>
+                                )}
+                                {lastRefreshedAt && (
+                                    <span className="ml-2">(refreshed {lastRefreshedAt})</span>
+                                )}
                             </div>
-                            <div className="mt-3">
-                                <Label>Note</Label>
-                                <div className="text-sm text-gray-500">Reports will use the currently logged-in patient's saved parameters.</div>
-                            </div>
+                            <Button 
+                                onClick={handleRefreshParameters}
+                                variant="outline"
+                                className="flex items-center gap-2"
+                                disabled={isRefreshing || !selectedPatient?.id}
+                                title="Reload latest parameters from local storage"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                Refresh
+                            </Button>
+                            <Button 
+                                onClick={handlePrintSelected}
+                                disabled={selectedReports.length === 0}
+                                className="flex items-center gap-2"
+                            >
+                                <Printer className="h-4 w-4" />
+                                Print Selected ({selectedReports.length})
+                            </Button>
+                            <Button 
+                                onClick={handleExportSelected}
+                                disabled={selectedReports.length === 0}
+                                variant="outline"
+                                className="flex items-center gap-2"
+                            >
+                                <Download className="h-4 w-4" />
+                                Export PDF
+                            </Button>
                         </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>History / Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            <div className="text-sm">Loaded history entries: {patientHistory.length}</div>
-                            <ScrollArea className="h-48">
-                                <div className="space-y-2">
-                                    {patientHistory.length === 0 && <div className="text-sm text-gray-500">No history loaded</div>}
-                                    {patientHistory.map((entry, idx) => (
-                                        <div key={idx} className="p-2 border rounded">
-                                            <div className="text-xs text-gray-600">{entry.timestamp} — mode: {entry.mode}</div>
-                                            <div className="text-sm">{Object.keys(entry.values || {}).length} parameters</div>
-                                            <div className="mt-2 flex gap-2">
-                                                <Button size="sm" onClick={() => { setPreviewReport({ id: 'temporary', name: 'Temporary Parameters', description: '', type: 'parameter' }); }}>Preview</Button>
-                                                <Button size="sm" variant="outline" onClick={() => {
-                                                    const blob = new Blob([JSON.stringify(entry, null, 2)], { type: 'application/json' });
-                                                    const url = URL.createObjectURL(blob);
-                                                    const a = document.createElement('a');
-                                                    a.href = url;
-                                                    a.download = `${selectedPatient?.id || 'patient'}_history_${idx + 1}.json`;
-                                                    document.body.appendChild(a);
-                                                    a.click();
-                                                    document.body.removeChild(a);
-                                                    URL.revokeObjectURL(url);
-                                                }}>Export</Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {!getLatestForPatient().timestamp && (
+                        <div className="mb-3 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded p-2">
+                            No saved parameters found for this patient. Save parameters in the Parameters page, then click Refresh.
+                        </div>
+                    )}
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12">Select</TableHead>
+                                    <TableHead>Report Name</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {availableReports.map((report) => (
+                                    <TableRow key={report.id} className={!report.isAvailable ? "opacity-50" : ""}>
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={selectedReports.includes(report.id)}
+                                                onCheckedChange={() => toggleReportSelection(report.id)}
+                                                disabled={!report.isAvailable}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="font-medium">{report.name}</TableCell>
+                                        <TableCell>
+                                            <Badge 
+                                                variant="outline" 
+                                                className={reportTypeColors[report.type]}
+                                            >
+                                                {report.type}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {report.description}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Dialog open={previewReport?.id === report.id} onOpenChange={(open: boolean) => { if (!open) setPreviewReport(null); }}>
+                                                    <DialogTrigger asChild>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="sm"
+                                                            onClick={() => setPreviewReport(report)}
+                                                            disabled={!report.isAvailable}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="max-w-4xl max-h-[80vh]">
+                                                        <DialogHeader>
+                                                            <DialogTitle>{report.name} Preview</DialogTitle>
+                                                            <DialogDescription>
+                                                                Preview and export your pacemaker report
+                                                            </DialogDescription>
+                                                        </DialogHeader>
+                                                        <ScrollArea className="h-96">
+                                                            <pre className="text-xs font-mono whitespace-pre-line bg-muted/50 p-4 rounded">
+                                                                {generateReportContent(report, {
+                                                                    institution: headerInfo.institution,
+                                                                    instution: headerInfo.institution,
+                                                                    date: latestTimestamp || new Date().toISOString(),
+                                                                    deviceInfo: '',
+                                                                    dcmInfo: headerInfo.dcmInfo,
+                                                                    parameters: getLatestForPatient().values,
+                                                                    patientId: selectedPatient?.id,
+                                                                })}
+                                                            </pre>
+                                                        </ScrollArea>
+                                                        <div className="flex justify-end gap-2 pt-4 border-t">
+                                                            <Button variant="outline" className="flex items-center gap-2" onClick={handleRefreshParameters} disabled={isRefreshing || !selectedPatient?.id}>
+                                                                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                                                Refresh
+                                                            </Button>
+                                                            <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintSelected}>
+                                                                <Printer className="h-4 w-4" />
+                                                                Print
+                                                            </Button>
+                                                            <Button className="flex items-center gap-2" onClick={() => outputReport(report, {
+                                                                institution: headerInfo.institution,
+                                                                instution: headerInfo.institution,
+                                                                date: latestTimestamp || new Date().toISOString(),
+                                                                deviceInfo: '',
+                                                                dcmInfo: headerInfo.dcmInfo,
+                                                                parameters: getLatestForPatient().values,
+                                                                patientId: selectedPatient?.id,
+                                                            })}>
+                                                                <Download className="h-4 w-4" />
+                                                                Export PDF
+                                                            </Button>
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm"
+                                                    onClick={() => outputReport(report, {
+                                                        institution: headerInfo.institution,
+                                                        instution: headerInfo.institution,
+                                                        date: latestTimestamp || new Date().toISOString(),
+                                                        deviceInfo: '',
+                                                        dcmInfo: headerInfo.dcmInfo,
+                                                        parameters: getLatestForPatient().values,
+                                                        patientId: selectedPatient?.id,
+                                                    })}
+                                                    disabled={!report.isAvailable}
+                                                >
+                                                    <Printer className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                        </div>
-                                    ))}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Report Header Configuration */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <Building className="h-5 w-5" />
+                            Report Header Information
+                        </CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsEditingHeader(!isEditingHeader)}
+                            className="flex items-center gap-2"
+                        >
+                            <Edit className="h-4 w-4" />
+                            {isEditingHeader ? 'Cancel' : 'Edit'}
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {isEditingHeader ? (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="institution">Institution</Label>
+                                        <Input
+                                            id="institution"
+                                            value={headerInfo.institution}
+                                            onChange={(e) => setHeaderInfo(prev => ({ ...prev, institution: e.target.value }))}
+                                            placeholder="Enter institution name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="clinician">Clinician</Label>
+                                        <Input
+                                            id="clinician"
+                                            value={headerInfo.clinician}
+                                            onChange={(e) => setHeaderInfo(prev => ({ ...prev, clinician: e.target.value }))}
+                                            placeholder="Enter clinician name"
+                                        />
+                                    </div>
                                 </div>
-                            </ScrollArea>
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="sessionDate">Session Date/Time</Label>
+                                        <Input
+                                            id="sessionDate"
+                                            value={headerInfo.sessionDate}
+                                            onChange={(e) => setHeaderInfo(prev => ({ ...prev, sessionDate: e.target.value }))}
+                                            placeholder="Enter session date/time"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="dcmInfo">DCM Information</Label>
+                                        <Input
+                                            id="dcmInfo"
+                                            value={headerInfo.dcmInfo}
+                                            onChange={(e) => setHeaderInfo(prev => ({ ...prev, dcmInfo: e.target.value }))}
+                                            placeholder="Enter DCM information"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pt-4 border-t">
+                                <Button onClick={() => setIsEditingHeader(false)} className="flex-1">Save Changes</Button>
+                                <Button variant="outline" onClick={() => setIsEditingHeader(false)} className="flex-1">Cancel</Button>
+                            </div>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Preview / Actions footer */}
-            <div className="flex gap-2">
-                <Button onClick={() => { if (selectedReports.length === 1) handlePreview(avaliableReports.find(r => r.id === selectedReports[0])!); else if (selectedReports.length > 1) handlePreview(avaliableReports.find(r => r.id === selectedReports[0])!); }}>Preview Selected</Button>
-                <Button onClick={() => { if (previewReport) outputReport(previewReport, { ...headerInfo, date: new Date().toISOString(), parameters: patientHistory.length > 0 ? patientHistory[patientHistory.length - 1].values : undefined, institution: headerInfo.instution, patientId: selectedPatient?.id }); }}>Download Preview</Button>
-            </div>
-
-            {/* Preview Dialog */}
-            <Dialog open={!!previewReport} onOpenChange={(open: boolean) => { if (!open) setPreviewReport(null); }}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{previewReport?.name}</DialogTitle>
-                        <DialogDescription>
-                                <pre className="whitespace-pre-wrap">{generateReportContent(previewReport, { ...headerInfo, date: new Date().toISOString(), parameters: patientHistory.length > 0 ? patientHistory[patientHistory.length - 1].values : undefined, institution: headerInfo.instution, patientId: selectedPatient?.id })}</pre>
-                        </DialogDescription>
-                    </DialogHeader>
-                </DialogContent>
-            </Dialog>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                    <Building className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <p className="font-medium">Institution</p>
+                                        <p className="text-sm text-muted-foreground">{headerInfo.institution}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                    <User className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <p className="font-medium">Clinician</p>
+                                        <p className="text-sm text-muted-foreground">{headerInfo.clinician}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <p className="font-medium">Session Date/Time</p>
+                                        <p className="text-sm text-muted-foreground">{headerInfo.sessionDate}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                        <p className="font-medium">DCM Information</p>
+                                        <p className="text-sm text-muted-foreground">{headerInfo.dcmInfo}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 };
@@ -217,41 +453,119 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
         
         // bradycardia parameters report
         case 'bradycardia': case 'temporary': {
-            // Try to get parameters from headerInfo first, then fall back to common localStorage keys.
+            // Try to get parameters from headerInfo first, then fall back to persisted 'pacemakerParameters' for the given patient, then other common keys.
             let params: any = headerInfo.parameters ?? headerInfo.savedParameters;
-            if (!params) {
-            try {
-                const raw =
-                localStorage.getItem('dcm_parameters') ??
-                localStorage.getItem('savedParameters') ??
-                localStorage.getItem('parameters');
-                if (raw) params = JSON.parse(raw);
-            } catch {
-                params = undefined;
+            // Fallback 1: canonical app storage (with patient scoping)
+            if (!params && headerInfo.patientId) {
+                try {
+                    const rawPP = localStorage.getItem('pacemakerParameters');
+                    if (rawPP) {
+                        const parsed = JSON.parse(rawPP || '{}');
+                        const hist = parsed[headerInfo.patientId] || [];
+                        if (hist.length) params = hist[hist.length - 1].values;
+                    }
+                } catch {}
             }
+            // Fallback 2: legacy/common keys
+            if (!params) {
+                try {
+                    const raw =
+                        localStorage.getItem('dcm_parameters') ??
+                        localStorage.getItem('savedParameters') ??
+                        localStorage.getItem('parameters');
+                    if (raw) params = JSON.parse(raw);
+                } catch {
+                    params = undefined;
+                }
             }
 
-            // Normalize parameters into a readable list
-            let paramsText = '';
-            if (Array.isArray(params)) {
-            paramsText = params
-                .map((p, i) => {
-                if (p && typeof p === 'object') {
-                    // common shapes: { name, value } or { parameter, value }
-                    const name = p.name ?? p.parameter ?? p.param ?? `param_${i + 1}`;
-                    const value = p.value ?? p.val ?? JSON.stringify(p);
-                    return `- ${name}: ${value}`;
-                }
-                return `- ${String(p)}`;
-                })
-                .join('\n');
-            } else if (params && typeof params === 'object') {
-            paramsText = Object.entries(params)
-                .map(([k, v]) => `- ${k}: ${v}`)
-                .join('\n');
-            } else {
-            paramsText = '- [No saved parameters found]';
-            }
+                        // Normalize parameters into a readable list with friendly names and units
+                        const labelMap: Record<string, string> = {
+                            lowerRateLimit: 'Lower Rate Limit',
+                            upperRateLimit: 'Upper Rate Limit',
+                            maximumSensorRate: 'Maximum Sensor Rate',
+                            fixedAVDelay: 'Fixed AV Delay',
+                            dynamicAVDelay: 'Dynamic AV Delay',
+                            minimumDynamicAVDelay: 'Minimum Dynamic AV Delay',
+                            sensedAVDelayOffset: 'Sensed AV Delay Offset',
+                            atrialAmplitudeRegulated: 'Atrial Amplitude (Regulated)',
+                            ventricularAmplitudeRegulated: 'Ventricular Amplitude (Regulated)',
+                            atrialAmplitudeUnregulated: 'Atrial Amplitude (Unregulated)',
+                            ventricularAmplitudeUnregulated: 'Ventricular Amplitude (Unregulated)',
+                            atrialPulseWidth: 'Atrial Pulse Width',
+                            ventricularPulseWidth: 'Ventricular Pulse Width',
+                            atrialSensitivity: 'Atrial Sensitivity',
+                            ventricularSensitivity: 'Ventricular Sensitivity',
+                            ventricularRefractoryPeriod: 'Ventricular Refractory Period',
+                            atrialRefractoryPeriod: 'Atrial Refractory Period',
+                            pvarp: 'PVARP',
+                            pvarpExtension: 'PVARP Extension',
+                            hysteresisRateLimit: 'Hysteresis Rate Limit',
+                            rateSmoothing: 'Rate Smoothing',
+                            atrMode: 'ATR Mode',
+                            atrDuration: 'ATR Duration',
+                            atrFallbackTime: 'ATR Fallback Time',
+                            ventricularBlanking: 'Ventricular Blanking',
+                            activityThreshold: 'Activity Threshold',
+                            reactionTime: 'Reaction Time',
+                            responseFactor: 'Response Factor',
+                            recoveryTime: 'Recovery Time',
+                        };
+
+                        const unitMap: Record<string, string> = {
+                            lowerRateLimit: 'ppm',
+                            upperRateLimit: 'ppm',
+                            maximumSensorRate: 'ppm',
+                            fixedAVDelay: 'ms',
+                            minimumDynamicAVDelay: 'ms',
+                            sensedAVDelayOffset: 'ms',
+                            atrialAmplitudeRegulated: 'V',
+                            ventricularAmplitudeRegulated: 'V',
+                            atrialAmplitudeUnregulated: 'V',
+                            ventricularAmplitudeUnregulated: 'V',
+                            atrialPulseWidth: 'ms',
+                            ventricularPulseWidth: 'ms',
+                            atrialSensitivity: 'mV',
+                            ventricularSensitivity: 'mV',
+                            ventricularRefractoryPeriod: 'ms',
+                            atrialRefractoryPeriod: 'ms',
+                            pvarp: 'ms',
+                            pvarpExtension: 'ms',
+                            hysteresisRateLimit: 'ppm',
+                            ventricularBlanking: 'ms',
+                            reactionTime: 'sec',
+                            recoveryTime: 'min',
+                        };
+
+                        const toLabel = (key: string) => labelMap[key] || key
+                            .replace(/([a-z])([A-Z])/g, '$1 $2')
+                            .replace(/^./, (c) => c.toUpperCase());
+
+                        let paramsText = '';
+                        if (Array.isArray(params)) {
+                            paramsText = params
+                                .map((p, i) => {
+                                    if (p && typeof p === 'object') {
+                                        const rawKey = (p.name ?? p.parameter ?? p.param ?? `param_${i + 1}`) as string;
+                                        const value = p.value ?? p.val ?? JSON.stringify(p);
+                                        const label = toLabel(rawKey);
+                                        const unit = unitMap[rawKey] ? ` ${unitMap[rawKey]}` : '';
+                                        return `${label}: ${value}${unit}`;
+                                    }
+                                    return String(p);
+                                })
+                                .join('\n');
+                        } else if (params && typeof params === 'object') {
+                            paramsText = Object.entries(params)
+                                .map(([k, v]) => {
+                                    const label = toLabel(k);
+                                    const unit = unitMap[k] ? ` ${unitMap[k]}` : '';
+                                    return `${label}: ${v}${unit}`;
+                                })
+                                .join('\n');
+                        } else {
+                            paramsText = '[No saved parameters found]';
+                        }
 
             const institution = headerInfo.institution ?? headerInfo.instution ?? '';
 

@@ -448,7 +448,7 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === "reports" && selectedPatient && <ReportsPanel />}
+            {activeTab === "reports" && selectedPatient && <ReportsPanel selectedPatient={selectedPatient} />}
             {!selectedPatient && activeTab !== "about" && (
               <Card className="p-8 text-center">
                 <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
