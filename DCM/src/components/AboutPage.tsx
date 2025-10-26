@@ -17,9 +17,10 @@ interface User {
 interface AboutUtilitiesProps {
     savedUsers: User[];
     onDeleteUser: (username: string) => void;
+    currentUser?: string;
 }
 
-export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps) {
+export function AboutUtilities({ savedUsers, onDeleteUser, currentUser }: AboutUtilitiesProps) {
     const [currentTime, setCutrrentTime] = useState(new Date());
 
     const handleSetClock = () => {
@@ -42,14 +43,13 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5" />
-            About DCM Utilities
+            DCM Utilities
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Cpu className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Application Version</p>
                   <p className="text-sm text-muted-foreground">Placeholder</p>
@@ -57,15 +57,13 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
               </div>
               
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <HardDrive className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">DCM Serial Number</p>
-                  <p className="text-sm font-mono">Placeholder</p>
+                  <p className="text-sm text-muted-foreground">Placeholder</p>
                 </div>
               </div>
               
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Building className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Institution</p>
                   <p className="text-sm text-muted-foreground">McMaster University</p>
@@ -75,7 +73,6 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
             
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Build Date</p>
                   <p className="text-sm text-muted-foreground">Placeholder </p>
@@ -84,7 +81,6 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
               
               
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Wifi className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Telemetry Status</p>
                   <Badge variant="default">Placeholder</Badge>
@@ -93,10 +89,9 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
             
               
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Info className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">License</p>
-                  <p className="text-sm text-muted-foreground">Clinical Use License</p>
+                  <p className="font-medium">Group</p>
+                  <p className="text-sm text-muted-foreground">3K04 Group 3</p>
                 </div>
               </div>
             </div>
@@ -117,10 +112,8 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-1">
               <h4 className="font-medium">Set Device Clock</h4>
+
               <p className="text-sm text-muted-foreground">
-                Synchronize the pacemaker clock with system time
-              </p>
-              <p className="text-sm font-mono">
                 Current System Time: {currentTime.toLocaleString()}
               </p>
             </div>
@@ -129,7 +122,6 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
               className="flex items-center gap-2"
               onClick={handleSetClock}
             >
-              <Clock className="h-4 w-4" />
               Set Clock
             </Button>
           </div>
@@ -147,7 +139,6 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
               variant="outline" 
               className="flex items-center gap-2"
             >
-              <UserPlus className="h-4 w-4" />
               New Patient
             </Button>
           </div>
@@ -172,11 +163,11 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
         </CardContent>
       </Card>
 
-      {/* Developer Section */}
+      {/* Developer Section - Only visible to Admin */}
+      {currentUser === "Admin" && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
-            <Code className="h-5 w-5" />
             Developer Tools
           </CardTitle>
         </CardHeader>
@@ -184,9 +175,6 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-1">
               <h4 className="font-medium">Account Manager</h4>
-              <p className="text-sm text-muted-foreground">
-                View and manage all user accounts in the system
-              </p>
             </div>
             <div className="border rounded-lg">
               <Table>
@@ -194,19 +182,16 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
                   <TableRow>
                     <TableHead>
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
                         Username
                       </div>
                     </TableHead>
                     <TableHead>
                       <div className="flex items-center gap-2">
-                        <Key className="h-4 w-4" />
                         Password
                       </div>
                     </TableHead>
                     <TableHead>
                       <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
                         Created
                       </div>
                     </TableHead>
@@ -250,6 +235,7 @@ export function AboutUtilities({ savedUsers, onDeleteUser }: AboutUtilitiesProps
           </div>
         </CardContent>
       </Card>
+      )}
 
 
     </div>

@@ -205,11 +205,6 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {!getLatestForPatient().timestamp && (
-                        <div className="mb-3 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded p-2">
-                            No saved parameters found for this patient. Save parameters in the Parameters page, then click Refresh.
-                        </div>
-                    )}
                     <div className="border rounded-lg">
                         <Table>
                             <TableHeader>

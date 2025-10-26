@@ -11,6 +11,8 @@ import { CreateUserLogin } from "./components/CreateUserLogin";
 import { ParametersTable } from "./components/ParametersTable";
 import { ReportsPanel } from "./components/PrintedReports";
 import { TelemetryWidget } from "./components/DeviceCard";
+import { AboutUtilities } from "./components/AboutPage";
+import { EKGViewer } from "./components/EKGViewer";
 import {
   Heart,
   Users,
@@ -238,6 +240,10 @@ export default function App() {
     handleConnect();
   };
 
+  const handleDeleteUser = (username: string) => {
+    setSavedUsers((prev) => prev.filter((u) => u.username !== username));
+  };
+
   if (!isLoggedIn) {
     if (showCreateUser) {
       return (
@@ -323,17 +329,17 @@ export default function App() {
               onClick={() => setActiveTab("parameters")}
             >
               <Settings className="mr-2 h-100 w-4 flex-shrink-0" />
-              <span className="truncate">My Parameters</span>
+              <span className="truncate">Parameters</span>
             </Button>
 
-            {/* <Button
+            <Button
               variant={activeTab === "egm" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
               onClick={() => setActiveTab("egm")}
             >
               <Activity className="mr-2 h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Electrogram</span>
-            </Button> */}
+              <span className="truncate">Strip Chart</span>
+            </Button>
 
             <Button
               variant={activeTab === "reports" ? "default" : "ghost"}
@@ -341,7 +347,7 @@ export default function App() {
               onClick={() => setActiveTab("reports")}
             >
               <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
-              <span className="truncate">My Reports</span>
+              <span className="truncate">Reports</span>
             </Button>
 
             <Separator className="my-2" />
@@ -460,7 +466,12 @@ export default function App() {
               </div>
             )}
 
+            {activeTab === "egm" && <EKGViewer />}
+
             {activeTab === "reports" && selectedPatient && <ReportsPanel selectedPatient={selectedPatient} />}
+            {activeTab === "about" && (
+              <AboutUtilities savedUsers={savedUsers} onDeleteUser={handleDeleteUser} currentUser={currentUser} />
+            )}
             {!selectedPatient && activeTab !== "about" && (
               <Card className="p-8 text-center">
                 <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
