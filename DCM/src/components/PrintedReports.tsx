@@ -14,29 +14,29 @@ interface Report {
     id: string;
     name: string;
     description: string;
-    type: 'diagnostic' | 'parameter' | 'session' | 'trending';
+    type: 'diagnostic' | 'parameter' | 'status' ;
     lastGenerated?: string;
     isAvailable: boolean;
 }
 
 const availableReports: Report[] = [
-    { id: 'bradycardia', name: 'Bradycardia Report', description: 'Comprehensive pacing data and statistics', type: 'diagnostic', isAvailable: true },
+    { id: 'bradycardia', name: 'Bradycardia Report', description: 'Saved bradycardia report and parameters', type: 'parameter', isAvailable: true },
     { id: 'temporary', name: 'Temporary Parameters', description: 'Current session parameter changes', type: 'parameter', isAvailable: true },
-    { id: 'implant', name: 'Implant Data Report', description: 'Device specifications and implant information', type: 'diagnostic', isAvailable: true },
-    { id: 'threshold', name: 'Threshold Test Report', description: 'Capture threshold test results', type: 'diagnostic', isAvailable: true },
+    { id: 'implant', name: 'Implant Data Report', description: 'Device specifications and implant information', type: 'status', isAvailable: true },
+    { id: 'threshold', name: 'Threshold Test Report', description: 'Saved threshold test results', type: 'diagnostic', isAvailable: true },
     { id: 'measured', name: 'Measured Data Report', description: 'Lead impedance and sensor data', type: 'diagnostic', isAvailable: true },
-    { id: 'markers', name: 'Marker Legend', description: 'EGM event marker reference', type: 'session', isAvailable: true },
-    { id: 'session', name: 'Session Net Change', description: 'Summary of parameter modifications', type: 'session', isAvailable: true },
-    { id: 'final', name: 'Final Report', description: 'Complete session summary', type: 'session', isAvailable: true },
-    { id: 'histogram', name: 'Histogram Report', description: 'Rate histogram data and analysis', type: 'trending', isAvailable: true },
-    { id: 'trending', name: 'Trending Report', description: 'Long-term rate and activity trends', type: 'trending', isAvailable: true }
+    { id: 'markers', name: 'Marker Legend', description: 'EGM event markers', type: 'status', isAvailable: true },
+    { id: 'session', name: 'Session Net Change', description: 'Summary of parameter modifications', type: 'status', isAvailable: true },
+    { id: 'final', name: 'Final Report', description: 'Complete session summary', type: 'status', isAvailable: true },
+    { id: 'histogram', name: 'Histogram Report', description: 'Rate histogram data', type: 'diagnostic', isAvailable: true },
+    { id: 'trending', name: 'Trending Report', description: 'Trends report and data', type: 'diagnostic', isAvailable: true }
 ];
 
 const reportTypeColors: Record<Report['type'], string> = {
     diagnostic: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
     parameter: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    session: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-    trending: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+    status: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    // trending: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
 };
 
 export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
@@ -44,10 +44,10 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
     const [previewReport, setPreviewReport] = useState<Report | null>(null);
     const [isEditingHeader, setIsEditingHeader] = useState(false);
     const [headerInfo, setHeaderInfo] = useState({
-        institution: 'Cardiology Associates',
-        clinician: 'Dr. Sarah Johnson',
+        institution: 'McMaster University',
+        group: '3K04 Group 3',
         sessionDate: new Date().toLocaleString(),
-        dcmInfo: 'S/N: DCM-2024-001, v2.1.5',
+        dcmInfo: 'Placeholder',
     });
     const [patientHistory, setPatientHistory] = useState<any[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -102,16 +102,16 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
 
     const handleRefreshParameters = () => {
         const id = selectedPatient?.id;
-        console.log('🔄 Refresh clicked - Patient ID:', id);
+        console.log('Refresh clicked - Patient ID:', id);
         if (!id) {
-            console.log('⚠️ No patient ID available');
+            console.log('No patient ID available');
             return;
         }
         setIsRefreshing(true);
         try {
             loadPatientHistory(id);
             setLastRefreshedAt(new Date().toLocaleTimeString());
-            console.log('✅ Refresh completed');
+            console.log('Refresh completed');
         } finally {
             setIsRefreshing(false);
         }
@@ -174,16 +174,6 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                             Available Reports
                         </CardTitle>
                         <div className="flex items-center gap-2">
-                            <div className="hidden md:flex items-center text-xs text-muted-foreground mr-2">
-                                {getLatestForPatient().timestamp ? (
-                                    <span>Latest parameters: {new Date(getLatestForPatient().timestamp!).toLocaleString()}</span>
-                                ) : (
-                                    <span>No saved parameters for this patient</span>
-                                )}
-                                {lastRefreshedAt && (
-                                    <span className="ml-2">(refreshed {lastRefreshedAt})</span>
-                                )}
-                            </div>
                             <Button 
                                 onClick={handleRefreshParameters}
                                 variant="outline"
@@ -269,9 +259,6 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                                     <DialogContent className="max-w-4xl max-h-[80vh]">
                                                         <DialogHeader>
                                                             <DialogTitle>{report.name} Preview</DialogTitle>
-                                                            <DialogDescription>
-                                                                Preview and export your pacemaker report
-                                                            </DialogDescription>
                                                         </DialogHeader>
                                                         <ScrollArea className="h-96">
                                                             <pre className="text-xs font-mono whitespace-pre-line bg-muted/50 p-4 rounded">
@@ -373,7 +360,7 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                         <Label htmlFor="clinician">Clinician</Label>
                                         <Input
                                             id="clinician"
-                                            value={headerInfo.clinician}
+                                            value={headerInfo.group}
                                             onChange={(e) => setHeaderInfo(prev => ({ ...prev, clinician: e.target.value }))}
                                             placeholder="Enter clinician name"
                                         />
@@ -418,8 +405,8 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                                     <User className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                        <p className="font-medium">Clinician</p>
-                                        <p className="text-sm text-muted-foreground">{headerInfo.clinician}</p>
+                                        <p className="font-medium">Group</p>
+                                        <p className="text-sm text-muted-foreground">{headerInfo.group}</p>
                                     </div>
                                 </div>
                             </div>

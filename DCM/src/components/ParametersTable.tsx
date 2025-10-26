@@ -251,8 +251,8 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
                 value: toNumber(patientParams.atrialSensitivity, 0.75),
                 unit: 'mV',
                 type: 'select',
-                options: optionsToNumbers(['0.25','0.5','0.75','1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0','9.5','10.0']),
-                range: '0.25, 0.5, 0.75, 1.0-10 mV',
+                options: optionsToNumbers(['0.25', '0.5', '0.75']),
+                range: '0.25, 0.5, 0.75',
                 isValid: true
             },
             { // Sensitivity Parameters
@@ -261,8 +261,8 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
                 value: toNumber(patientParams.ventricularSensitivity, 2.5),
                 unit: 'mV',
                 type: 'select',
-                options: optionsToNumbers(['0.25','0.5','0.75','1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0','9.5','10.0']),
-                range: '0.25, 0.5, 0.75, 1.0-10 mV',
+                options: optionsToNumbers(['1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0','9.5','10.0']),
+                range: '1.0-10 mV',
                 isValid: true
             },
             { // Refractory Period Parameters
@@ -664,9 +664,8 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
             <Input
               value={param.value}
               onChange={(e) => updateParameter(param.id, Number(e.target.value))}
-              type={param.type === 'number' ? 'number' : 'text'}
-              step={getStepValue(param)}
-              readOnly={param.type === 'select'}
+              type="text"
+              readOnly
               className={`h-11 text-center ${param.isValid === false ? 'border-red-500 bg-red-50' : param.isDirty ? 'border-blue-500 bg-blue-50' : 'bg-gray-50'}`}
               placeholder={param.value.toString()}
             />

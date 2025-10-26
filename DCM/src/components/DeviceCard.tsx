@@ -80,7 +80,7 @@ export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStat
 }
 
 
-// Telemetry widget
+// connection widget
 interface TelemetryWidgetProps {
     connectionState: 'Connected' | 'Out of Range' | 'Noise' | 'Lost';
     onConnect: () => void;
@@ -168,7 +168,7 @@ export function TelemetryWidget({
 
 
 
-// reference code
+// reference code dont delete yet 
 /*
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
