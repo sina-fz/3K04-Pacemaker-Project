@@ -10,6 +10,7 @@ import { UserLogin } from "./components/UserLogin";
 import { CreateUserLogin } from "./components/CreateUserLogin";
 import { ParametersTable } from "./components/ParametersTable";
 import { ReportsPanel } from "./components/PrintedReports";
+import { TelemetryWidget } from "./components/DeviceCard";
 import {
   Heart,
   Users,
@@ -59,7 +60,7 @@ export default function App() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState("connection");
   const [telemetryState, setTelemetryState] = useState({
-    connectionState: "Lost" as "Connected" | "lost",
+    connectionState: "Lost" as "Connected" | "Lost" | "Out of Range" | "Noise",
     isConnecting: false,
   });
 
@@ -164,9 +165,9 @@ export default function App() {
         dateOfBirth: "",
         patientId: `P00${String(accountNumber).padStart(4, "0")}`,
         device: {
-          model: "Unknown Device",
-          serialNumber: "N/A",
-          lastInterrogation: "Never",
+          model: "Placeholder",
+          serialNumber: "Placeholder",
+          lastInterrogation: "Placeholder",
           isConnected: false,
         },
         parameters: {
@@ -218,12 +219,12 @@ export default function App() {
         connectionState: "Connected",
         isConnecting: false,
       });
-    }, 2000);
+    }, 500);
   };
 
   const handleDisconnect = () => {
     setTelemetryState({
-      connectionState: "lost",
+      connectionState: "Lost",
       isConnecting: false,
     });
 
@@ -231,6 +232,10 @@ export default function App() {
       handleConnect();
     };
     const isConnected = telemetryState.connectionState === "Connected";
+  };
+
+  const handleRetry = () => {
+    handleConnect();
   };
 
   if (!isLoggedIn) {
@@ -437,6 +442,13 @@ export default function App() {
                     )
                   );
                 })()}
+                <TelemetryWidget
+                  connectionState={telemetryState.connectionState}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                  onRetry={handleRetry}
+                  isConnecting={telemetryState.isConnecting}
+                />
               </div>
             )}
             {activeTab === "parameters" && selectedPatient && (
