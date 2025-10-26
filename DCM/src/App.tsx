@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "./components/ui/alert";
 import { UserLogin } from "./components/UserLogin";
 import { CreateUserLogin } from "./components/CreateUserLogin";
 import { ParametersTable } from "./components/ParametersTable";
+import { ReportsPanel } from "./components/PrintedReports";
 import {
   Heart,
   Users,
@@ -320,14 +321,14 @@ export default function App() {
               <span className="truncate">My Parameters</span>
             </Button>
 
-            <Button
+            {/* <Button
               variant={activeTab === "egm" ? "default" : "ghost"}
               className="w-full justify-start min-w-0"
               onClick={() => setActiveTab("egm")}
             >
               <Activity className="mr-2 h-4 w-4 flex-shrink-0" />
               <span className="truncate">Electrogram</span>
-            </Button>
+            </Button> */}
 
             <Button
               variant={activeTab === "reports" ? "default" : "ghost"}
@@ -350,8 +351,118 @@ export default function App() {
             </Button>
           </nav>
         </aside>
+        {/* Sidebar Navigation: ENDS */}
+        {/* main content for each tab */}
+        <main className="flex-1 overflow-auto">
+          <div className="p-6">
+            {activeTab === "connection" && selectedPatient && (
+              <div className="space-y-6">
+                {(() => {
+                  const currentUserData = savedUsers.find(
+                    (u) => u.username === currentUser
+                  );
+
+                  return (
+                    currentUserData && (
+                      <Card className="w-full">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Account & Device Information
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* User Information */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                Username
+                              </p>
+                              <p className="font-medium">
+                                {currentUserData.username}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                Account Created
+                              </p>
+                              <p className="font-medium">
+                                {new Date(
+                                  currentUserData.createdAt
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Device Information */}
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Device Model
+                                </p>
+                                <p className="font-medium">
+                                  {currentUserData.patientData.device.model}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">
+                                  Serial Number
+                                </p>
+                                <p className="font-medium font-mono text-sm text-[16px] font-bold">
+                                  {
+                                    currentUserData.patientData.device
+                                      .serialNumber
+                                  }
+                                </p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Last Interrogation
+                              </p>
+                              <p className="font-medium">
+                                {
+                                  currentUserData.patientData.device
+                                    .lastInterrogation
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  );
+                })()}
+              </div>
+            )}
+            {activeTab === "parameters" && selectedPatient && (
+              <div className="min-h-screen">
+                <ParametersTable
+                  selectedPatient={selectedPatient}
+                  onParameterSaved={handleParametersSaved}
+                />
+              </div>
+            )}
+
+            {activeTab === "reports" && selectedPatient && <ReportsPanel />}
+            {!selectedPatient && activeTab !== "about" && (
+              <Card className="p-8 text-center">
+                <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">
+                  Loading Your Device Data
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Please wait while we load your pacemaker information.
+                </p>
+              </Card>
+            )}
+          </div>
+        </main>
       </div>
-      {/* Sidebar Navigation: ENDS */}
     </div>
   );
 }
