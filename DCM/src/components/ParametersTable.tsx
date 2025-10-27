@@ -441,6 +441,7 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
 
     const modes = ['AAT', 'VVT', 'AOO', 'AAI', 'VOO', 'VVI', 'VDD', 'DOO', 'DDI', 'DDD', 'AOOR', 'AAIR', 'VOOR', 'VVIR', 'VDDR', 'DOOR', 'DDIR', 'DDDR'];
 
+    // Update parameter value and validity
     const updateParameter = (id: string, value: number) => {
       setParameters(prev => prev.map(param => {
         if (param.id === id) {
@@ -449,9 +450,9 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
           if (param.type === 'number') {
             if (numValue === null || numValue === undefined || isNaN(numValue)) {
               isValid = false;
-            } else if (param.min !== undefined && numValue < param.min) {
+            } else if (param.min !== undefined && numValue < param.min) { // check min
               isValid = false;
-            } else if (param.max !== undefined && numValue > param.max) {
+            } else if (param.max !== undefined && numValue > param.max) { // check max
               isValid = false;
             }
           } else if (param.type === 'select') {
@@ -543,8 +544,8 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     // Reset all parameters to nominal values
     setParameters(prev => prev.map(param => ({
       ...param,
-      value: nominalValues[param.id] ?? param.value,
-      isDirty: true,
+      value: nominalValues[param.id] ?? param.value, // only checks for null or undefined
+      isDirty: true, // mark as dirty
       isValid: true
     })));
     setHasChanges(true);
@@ -594,7 +595,6 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     if (selectedPatient?.id) {
       saveToLocalStorage(selectedPatient.id, parameterValues);
     }
-    
     onParameterSaved(parameterValues);
     setParameters(prev => prev.map(p => ({ ...p, isDirty: false })));
     setHasChanges(false);
@@ -616,6 +616,7 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     return history.length > 0 ? history[history.length - 1] : null;
   };
 
+  // Send parameters to pacemaker (deliverable 2)
   const handleSendToPacemaker = () => {
     if (!canSave || invalidCount > 0) return;
     console.log("Sending parameters to pacemaker:", parameters);
@@ -630,7 +631,6 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     if (param.step === 'custom' && param.id === 'lowerRateLimit') {
       return getLowerRateLimitStep(Number(param.value));
     }
-    
     return param.step as number;
   };
 
