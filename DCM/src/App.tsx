@@ -244,6 +244,17 @@ export default function App() {
     setSavedUsers((prev) => prev.filter((u) => u.username !== username));
   };
 
+  // When starting a New Patient workflow from About page:
+  // - Sign out current session
+  // - Navigate to Create User page
+  const handleNewPatient = () => {
+    setIsLoggedIn(false);
+    setCurrentUser("");
+    setSelectedPatient(null);
+    setActiveTab("connection");
+    setShowCreateUser(true);
+  };
+
   if (!isLoggedIn) {
     if (showCreateUser) {
       return (
@@ -470,7 +481,12 @@ export default function App() {
 
             {activeTab === "reports" && selectedPatient && <ReportsPanel selectedPatient={selectedPatient} />}
             {activeTab === "about" && (
-              <AboutUtilities savedUsers={savedUsers} onDeleteUser={handleDeleteUser} currentUser={currentUser} />
+              <AboutUtilities 
+                savedUsers={savedUsers} 
+                onDeleteUser={handleDeleteUser} 
+                currentUser={currentUser}
+                onNewPatient={handleNewPatient}
+              />
             )}
             {!selectedPatient && activeTab !== "about" && (
               <Card className="p-8 text-center">
