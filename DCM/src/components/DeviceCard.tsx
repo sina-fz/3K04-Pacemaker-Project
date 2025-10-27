@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Battery, Clock, Wifi, WifiOff, Power, AlertTriangle, RotateCcw } from "lucide-react";
 
-// landing page for device information
+// properties for device information card
 interface DeviceCardProps {
     model: string;
     serialNumber: string;
@@ -12,13 +12,13 @@ interface DeviceCardProps {
     patientName: string;
 }
 
+// used to map tailwind colors and labels to battery status codes
 const batteryStatusColors = {
     BOL: "bg-green-500",
     ERN: "bg-yellow-500",
     ERT: "bg-orange-500",
     ERP: "bg-red-500",
 };
-
 const batteryLabels = {
     BOL: "Beginning of Life",
     ERN: "Elective Replacement Near",
@@ -26,6 +26,7 @@ const batteryLabels = {
     ERP: "End of Replacement Period",
 };
 
+// renders the device information card
 export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStatus, patientName }: DeviceCardProps) {
     return (
         <Card className="w-full">
@@ -80,6 +81,8 @@ export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStat
 }
 
 
+
+
 // connection widget
 interface TelemetryWidgetProps {
     connectionState: 'Connected' | 'Out of Range' | 'Noise' | 'Lost';
@@ -89,6 +92,7 @@ interface TelemetryWidgetProps {
     isConnecting: boolean;
 }
 
+// maps connection states to colors and icons
 const stateColors = {
     'Connected': 'bg-green-500',
     'Out of Range': 'bg-yellow-500',
@@ -103,6 +107,7 @@ const stateIcons = {
     'Lost': WifiOff
 };
 
+// renders the telemetry widget
 export function TelemetryWidget({ 
     connectionState, 
     onConnect, 

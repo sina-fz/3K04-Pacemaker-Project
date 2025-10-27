@@ -7,28 +7,30 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 
+// Parameter makes one editable parameter with the following properties
 interface Parameter{
     id: string;
     name: string;
-    value: number; // always numeric now
+    value: number;
     unit: string;
     type: 'select' | 'number' | 'text';
-    options?: number[]; // numeric options
+    options?: number[];
     min?: number;
     max?: number;
     step?: number | 'custom';
     isDirty?: boolean;
     isValid?: boolean;
     range?: string;
-    allowOff?: boolean; // when true, 0 represents Off
+    allowOff?: boolean;
 }
 
+// Passes the current selected patient and a callback when a parameter is saved
 interface ParametersTableProps {
     selectedPatient: any;
     onParameterSaved: (parameter: any) => void;
 }
 
-// right side select mode button
+// Right side select mode button
 function ModeButton({ mode, isSelected, onClick }: { mode: string; isSelected: boolean; onClick: () => void }) {
     return (
         <Button
@@ -51,14 +53,15 @@ const getLowerRateLimitStep = (value: number) => {
 };
 
 export function ParametersTable({ selectedPatient, onParameterSaved }: ParametersTableProps) {
-    const [selectedMode, setSelectedMode] = useState('DDD'); // nominal mode
-    const [hasChanges, setHasChanges] = useState(false);
+    const [selectedMode, setSelectedMode] = useState('DDD'); // current selected pacing mode
+    const [hasChanges, setHasChanges] = useState(false); // true when any parameters have been changed
 
-    // parameters state
+    // builds initial parameter state
     const getInitialParameters = (): Parameter[] => {
-        const patientParams = selectedPatient?.parameters || [];
-        // helper: coerce incoming values (strings like 'Off', '3%', etc.) to numbers
-        const toNumber = (v: any, fallback: number) => {
+        const patientParams = selectedPatient?.parameters || []; // reads from parameters of selected patient
+        
+        // helper: coerce incoming values to numbers
+        const toNumber = (v: any, fallback: number) => { 
             if (v === undefined || v === null) return fallback;
             if (typeof v === 'number') return v;
             if (typeof v === 'string') {
@@ -468,38 +471,41 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
       setHasChanges(true);
     };
 
+  // Increment function
   const incrementParameter = (param: Parameter) => {
-    if (param.type === 'select' && param.options) {
+    if (param.type === 'select' && param.options) { // find parameter value index in param.options
       const currentIndex = param.options.indexOf(param.value);
       if (currentIndex < param.options.length - 1) {
         updateParameter(param.id, param.options[currentIndex + 1]);
       }
-    } else if (param.type === 'number') {
+    } else if (param.type === 'number') { 
       const currentValue = param.value;
       let step: number = typeof param.step === 'number' ? param.step : getLowerRateLimitStep(currentValue) || 1;
-      const newValue = currentValue + step;
+      const newValue = currentValue + step; // increment by step value
       if (param.max === undefined || newValue <= param.max) {
-        updateParameter(param.id, newValue);
+        updateParameter(param.id, newValue); // update parameter value if within max limit
       }
     }
   };
 
+  // Decrement function
   const decrementParameter = (param: Parameter) => {
     if (param.type === 'select' && param.options) {
-      const currentIndex = param.options.indexOf(param.value);
+      const currentIndex = param.options.indexOf(param.value); // find parameter value index in param.options
       if (currentIndex > 0) {
         updateParameter(param.id, param.options[currentIndex - 1]);
       }
     } else if (param.type === 'number') {
       const currentValue = param.value;
       let step: number = typeof param.step === 'number' ? param.step : getLowerRateLimitStep(currentValue - 1) || 1;
-      const newValue = currentValue - step;
+      const newValue = currentValue - step; // decrement by step value
       if (param.min === undefined || newValue >= param.min) {
-        updateParameter(param.id, newValue);
+        updateParameter(param.id, newValue); // update parameter value if within min limit
       }
     }
   };
 
+  // Reset all parameters to nominal values
   const handleResetToNominal = () => {
     // Define nominal values (all numbers)
     const nominalValues: Record<string, number> = {
@@ -565,15 +571,16 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
       
       localStorage.setItem('pacemakerParameters', JSON.stringify(savedParams));
       
-      console.log('✅ Parameters saved successfully!');
+      console.log('Parameters saved successfully!');
       console.log('Patient ID:', patientId);
       console.log('Saved data:', parameterData);
       console.log('Full storage:', savedParams);
     } catch (error) {
-      console.error('❌ Error saving parameters to localStorage:', error);
+      console.error('Error saving parameters to localStorage:', error);
     }
   };
 
+  
   const handleSaveChanges = () => {
     // Prevent saving if there are any invalid parameters
     if (!canSave || invalidCount > 0) return;
@@ -627,8 +634,9 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     return param.step as number;
   };
 
+  // Check if increment/decrement is possible
   const canIncrement = (param: Parameter): boolean => {
-    if (param.type === 'select' && param.options) {
+    if (param.type === 'select' && param.options) { // find parameter value index in param.options
       const currentIndex = param.options.indexOf(param.value);
       return currentIndex < param.options.length - 1;
     } else if (param.type === 'number') {
@@ -639,8 +647,9 @@ export function ParametersTable({ selectedPatient, onParameterSaved }: Parameter
     return false;
   };
 
+  // Check if decrement is possible
   const canDecrement = (param: Parameter): boolean => {
-    if (param.type === 'select' && param.options) {
+    if (param.type === 'select' && param.options) { // find parameter value index in param.options
       const currentIndex = param.options.indexOf(param.value);
       return currentIndex > 0;
     } else if (param.type === 'number') {
