@@ -1,39 +1,45 @@
-import { useState } from "react";
+// Imports for UI components 
+import { useState } from "react"; 
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Heart, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
+// Properties for the Login Screen
 interface LoginScreenProps {
-  onLogin: (username: string, password: string) => boolean;
-  onNavigateToCreateUser: () => void;
+  onLogin: (username: string, password: string) => boolean; // takes a username and password, returns true if login is successful
+  onNavigateToCreateUser: () => void; // navigate to create user screen
 }
 
-export function UserLogin({onLogin, onNavigateToCreateUser}: LoginScreenProps) {
+// Defines the functional components for the user login
+export function UserLogin({onLogin, onNavigateToCreateUser}: LoginScreenProps) { // allows access onLogin and onNavigateToCreateUser directly
+  // Tracks state variables for username, password, and error
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
+    // Checks if either input is empty, ueses .trim() to remove whitespace
     if (!username.trim() || !password.trim()) {
       setError("Please enter both username and password.");
       return;
     }
+    setError(""); // clear previous errors
 
-    setError("");
-
+    // Calls onLogin prop to determine if success
     setTimeout(() => {
-      const success = onLogin(username.trim(), password);
+      const success = onLogin(username.trim(), password); // calls onLogin function in app.tsx to verify credentials
       if (!success) {
-        setError("Invalid username or password.");
+        setError("Invalid username or password."); // set error message if login fails
       }
     }, 500);
   };
 
+  // Renders the login form, defines what is displayed on screen
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">

@@ -7,44 +7,47 @@ import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Heart, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
 
+// Properties for the Create User Screen
 interface CreateUserScreenProps {
-    onCreateUser: (username: string, password: string) => boolean;
-    onBackToLogin: () => void;
+    onCreateUser: (username: string, password: string) => boolean; // takes a username and password, returns true if creation is successful
+    onBackToLogin: () => void; // navigates back to login screen
 }
-
-export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScreenProps) {
-    const [username, setUsername] = useState("");
+// Defines functional components for creating a new user account
+export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScreenProps) { // direct access to onCreateUser and onBackToLogin
+    // tracks state variables for username, password, confirm password, error, and success
+    const [username, setUsername] = useState(""); 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [error, setError] = useState("");;
+    const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
-        setSuccess(false);
+        setError(""); // clear previous errors
+        setSuccess(false); // reset success state
 
-        // Main Logic:Basic validation
+        // checks if password matches the confirm password
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
             return;
         }
 
+        // checks if username and/or password are empty
         if (!username || !password) {
             setError("Username and password are required.");
             return;
         }
 
         setTimeout(() => {
-            const success = onCreateUser(username, password);
+            const success = onCreateUser(username, password); // calls onCreateUser function in app.tsx to create account
             if (success) {
-                setSuccess(true);
+                setSuccess(true); // if account creation is successful, set success state to true
                 setUsername("");
                 setPassword("");
                 setConfirmPassword("");
             }
             else {
-                // Look at the same persistent key the app uses
+                // if not sucessful, checks if username already exists or user limit reached
                 const savedUsers = JSON.parse(localStorage.getItem("dcm_users") || '[]');
                 if (savedUsers.length >= 10){
                     setError("User limit reached. Cannot create more users.");
@@ -56,6 +59,7 @@ export function CreateUserLogin({ onCreateUser, onBackToLogin }: CreateUserScree
         }, 500);
     };
 
+    // Renders the login form, defines what is displayed on screen
     if (success){
         return (
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
