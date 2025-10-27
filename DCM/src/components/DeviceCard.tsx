@@ -46,7 +46,7 @@ export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStat
             </div>
             <div>
                 <p className="text-sm text-muted-foreground">Serial Number</p>
-                <p className="text-sm font-medium">{serialNumber}</p>
+                <p className="text-medium">{serialNumber}</p>
             </div>
         </div>
 

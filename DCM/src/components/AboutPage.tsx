@@ -18,9 +18,10 @@ interface AboutUtilitiesProps {
     savedUsers: User[];
     onDeleteUser: (username: string) => void;
     currentUser?: string;
+  onNewPatient: () => void;
 }
 
-export function AboutUtilities({ savedUsers, onDeleteUser, currentUser }: AboutUtilitiesProps) {
+export function AboutUtilities({ savedUsers, onDeleteUser, currentUser, onNewPatient }: AboutUtilitiesProps) {
     const [currentTime, setCutrrentTime] = useState(new Date());
 
     const handleSetClock = () => {
@@ -32,9 +33,11 @@ export function AboutUtilities({ savedUsers, onDeleteUser, currentUser }: AboutU
         console.log("Quitting Application");
     };
 
-    const handleNewPatientFlow = () => {
-        console.log("Starting New Patient Workflow");
-    };
+  const handleNewPatientFlow = () => {
+    console.log("Starting New Patient Workflow");
+    // Delegate to parent (App.tsx): sign out and navigate to Create User page
+    onNewPatient();
+  };
 
     return (
     <div className="space-y-6">
