@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef} from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Separator } from "./components/ui/separator";
@@ -68,6 +68,44 @@ export default function App() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
+//////////////////////////////
+const wsRef = useRef<WebSocket | null>(null);
+
+useEffect(() => {
+  let ws: WebSocket;
+  let retryTimeout: NodeJS.Timeout;
+
+  const connect = () => {
+    ws = new WebSocket("ws://localhost:3001");
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("Connected to Python backend");
+
+      if (selectedPatient?.parameters) {
+        ws.send(JSON.stringify(selectedPatient.parameters));
+      }
+    };
+
+    ws.onmessage = (event: MessageEvent) => {
+      console.log("Message from Python:", event.data);
+    };
+
+    ws.onclose = () => {
+      console.log("Disconnected from Python backend, retrying in 2s...");
+      retryTimeout = setTimeout(connect, 2000); // retry connection
+    };
+  };
+
+  connect();
+
+  return () => {
+    if (wsRef.current) wsRef.current.close();
+    if (retryTimeout) clearTimeout(retryTimeout);
+  };
+}, []);
+  
+//////////////////////////////
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -204,6 +242,11 @@ export default function App() {
 
     // Update the selected patient with new parameters
     setSelectedPatient((prev) => (prev ? { ...prev, parameters } : null));
+    
+    // Send new data to Python
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify(parameters));
+    }
   };
 
   const handleLogout = () => {
