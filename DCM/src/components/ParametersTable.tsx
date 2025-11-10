@@ -34,6 +34,7 @@ interface Parameter {
 interface ParametersTableProps {
   selectedPatient: any;
   onParameterSaved: (parameter: any) => void;
+  onSendToPacemaker?: (parameters: any) => void;
 }
 
 // Right side select mode button
@@ -71,6 +72,7 @@ const getLowerRateLimitStep = (value: number) => {
 export function ParametersTable({
   selectedPatient,
   onParameterSaved,
+  onSendToPacemaker,
 }: ParametersTableProps) {
   const [selectedMode, setSelectedMode] = useState("DDD"); // current selected pacing mode
   const [hasChanges, setHasChanges] = useState(false); // true when any parameters have been changed
@@ -985,15 +987,37 @@ export function ParametersTable({
     return history.length > 0 ? history[history.length - 1] : null;
   };
 
-  // Send parameters to pacemaker (deliverable 2)
+  // Send parameters to pacemaker (deliverable 2) now implemented via WebSocket
   const handleSendToPacemaker = () => {
-    if (!canSave || invalidCount > 0) return;
-    console.log("Sending parameters to pacemaker:", parameters);
+    if (!canSend || invalidCount > 0) return;
+    
+    const parameterValues = parameters.reduce((acc, param) => {
+      acc[param.id] = param.value;
+      return acc;
+    }, {} as any);
+
+    // Add mode and timestamp
+    const dataToSend = {
+      mode: selectedMode,
+      parameters: parameterValues,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log("Sending parameters to pacemaker:", dataToSend);
+    
+    // Send via WebSocket
+    if (onSendToPacemaker) {
+      onSendToPacemaker(dataToSend);
+    }
   };
 
   const invalidCount = parameters.filter((p) => p.isValid === false).length;
   const canSave =
     hasChanges &&
+    invalidCount === 0 &&
+    parameters.every((p) => p.isValid !== false);
+  const canSend =
+    !hasChanges &&
     invalidCount === 0 &&
     parameters.every((p) => p.isValid !== false);
 
@@ -1465,7 +1489,10 @@ export function ParametersTable({
                       key={mode}
                       mode={mode}
                       isSelected={selectedMode === mode}
-                      onClick={() => setSelectedMode(mode)}
+                      onClick={() => {
+                        setSelectedMode(mode);
+                        setHasChanges(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -1520,7 +1547,7 @@ export function ParametersTable({
 
                 <Button
                   onClick={handleSendToPacemaker}
-                  disabled={!canSave}
+                  disabled={!canSend}
                   className="w-full h-11 bg-gray-900 hover:bg-gray-800"
                 >
                   Send to Pacemaker

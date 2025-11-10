@@ -231,7 +231,7 @@ useEffect(() => {
   const handleParametersSaved = (parameters: any) => {
     if (!selectedPatient || !currentUser) return;
 
-    // Update the user's patient data with new parameters
+    // Update the user's patient data with new parameters (local state only)
     setSavedUsers((prev) =>
       prev.map((user) =>
         user.username === currentUser
@@ -240,12 +240,20 @@ useEffect(() => {
       )
     );
 
-    // Update the selected patient with new parameters
+    // Update the selected patient with new parameters in UI state
     setSelectedPatient((prev) => (prev ? { ...prev, parameters } : null));
-    
-    // Send new data to Python
+
+    // not sending to backend here anymore.
+    // Sending is now exclusively handled by the "Send to Pacemaker" button
+    // via handleSendToPacemaker to separate persist vs transmit actions.
+  };
+
+  const handleSendToPacemaker = (data: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify(parameters));
+      wsRef.current.send(JSON.stringify(data));
+      console.log("Sent to pacemaker via WebSocket:", data);
+    } else {
+      console.error("WebSocket is not connected. Cannot send parameters.");
     }
   };
 
@@ -516,6 +524,7 @@ useEffect(() => {
                 <ParametersTable
                   selectedPatient={selectedPatient}
                   onParameterSaved={handleParametersSaved}
+                  onSendToPacemaker={handleSendToPacemaker}
                 />
               </div>
             )}
