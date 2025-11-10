@@ -1102,12 +1102,14 @@ export function ParametersTable({
 
     return (
       <div className="space-y-2">
-        <Label className="text-sm font-medium text-gray-700">
+        <Label htmlFor={param.id} className="text-sm font-medium text-gray-700">
           {param.name} {param.unit && `(${param.unit})`}
         </Label>
         <div className="relative flex items-center gap-2">
           <div className="flex-1 relative">
             <Input
+              id={param.id}
+              name={param.id}
               value={param.value}
               onChange={(e) =>
                 updateParameter(param.id, Number(e.target.value))

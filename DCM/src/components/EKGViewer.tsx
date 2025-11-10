@@ -374,8 +374,10 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
                     {channel}
                   </Badge>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs">Gain:</Label>
+                    <Label htmlFor={`gain-${channel.toLowerCase()}`} className="text-xs">Gain:</Label>
                     <Input
+                      id={`gain-${channel.toLowerCase()}`}
+                      name={`gain-${channel.toLowerCase()}`}
                       type="number"
                       value={gainInputs[channel.toLowerCase() as keyof typeof gainInputs]}
                       onChange={(e) => handleGainInputChange(channel.toLowerCase(), e.target.value)}
