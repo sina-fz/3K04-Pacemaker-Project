@@ -63,8 +63,8 @@ function ModeButton({
 
 // helper functions for step values
 const getLowerRateLimitStep = (value: number) => {
-  if (value >= 30 && value < 50) return 5;
-  if (value >= 50 && value < 90) return 1;
+  if (value >= 30 && value < 51) return 5;
+  if (value >= 51 && value < 90) return 1;
   if (value >= 90 && value <= 175) return 5;
   return 1;
 };
@@ -133,7 +133,9 @@ export function ParametersTable({
         type: "number",
         min: 30,
         max: 175,
-        step: getLowerRateLimitStep(patientParams.lowerRateLimit || 60),
+       
+        // mark as custom so we recompute per current value
+        step: "custom",
         range: "30-175 ppm",
         isValid: true,
       },
@@ -840,10 +842,8 @@ export function ParametersTable({
       }
     } else if (param.type === "number") {
       const currentValue = param.value;
-      let step: number =
-        typeof param.step === "number"
-          ? param.step
-          : getLowerRateLimitStep(currentValue) || 1;
+      // Always recompute dynamic step for lowerRateLimit when step === 'custom'
+      const step = getStepValue(param) ?? 1;
       const newValue = currentValue + step; // increment by step value
       if (param.max === undefined || newValue <= param.max) {
         updateParameter(param.id, newValue); // update parameter value if within max limit
@@ -860,10 +860,8 @@ export function ParametersTable({
       }
     } else if (param.type === "number") {
       const currentValue = param.value;
-      let step: number =
-        typeof param.step === "number"
-          ? param.step
-          : getLowerRateLimitStep(currentValue - 1) || 1;
+      // Recompute dynamic step based on current value
+      const step = getStepValue(param) ?? 1;
       const newValue = currentValue - step; // decrement by step value
       if (param.min === undefined || newValue >= param.min) {
         updateParameter(param.id, newValue); // update parameter value if within min limit
@@ -999,7 +997,7 @@ export function ParametersTable({
     // Add mode and timestamp
     const dataToSend = {
       mode: selectedMode,
-      parameters: parameterValues,
+      ...parameterValues,
       timestamp: new Date().toISOString(),
     };
 
