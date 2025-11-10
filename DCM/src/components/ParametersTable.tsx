@@ -701,11 +701,6 @@ export function ParametersTable({
     getInitialParameters()
   );
 
-<<<<<<< HEAD
-    // Update parameter value and validity
-    const updateParameter = (id: string, value: number) => {
-      setParameters(prev => prev.map(param => {
-=======
   // Update parameters when patient changes
   useEffect(() => {
     setParameters(getInitialParameters());
@@ -733,13 +728,18 @@ export function ParametersTable({
     "DDDR",
   ];
 
+  // Update parameter value and validity
   const updateParameter = (id: string, value: number) => {
-    setParameters((prev) =>
-      prev.map((param) => {
->>>>>>> 68ea9ea5bd71b0d4c9d7ec1fbc04448bac9bcb85
+    setParameters((prev) => {
+      // Get current rate limits for cross-validation
+      const currentLowerRate = prev.find((p) => p.id === "lowerRateLimit")?.value;
+      const currentUpperRate = prev.find((p) => p.id === "upperRateLimit")?.value;
+
+      return prev.map((param) => {
         if (param.id === id) {
           let numValue = value;
           let isValid = true;
+          
           if (param.type === "number") {
             if (
               numValue === null ||
@@ -747,16 +747,30 @@ export function ParametersTable({
               isNaN(numValue)
             ) {
               isValid = false;
-            } else if (param.min !== undefined && numValue < param.min) { // check min
+            } else if (param.min !== undefined && numValue < param.min) {
+              // check min
               isValid = false;
-            } else if (param.max !== undefined && numValue > param.max) { // check max
+            } else if (param.max !== undefined && numValue > param.max) {
+              // check max
               isValid = false;
+            }
+            
+            // Cross-validation for rate limits
+            if (param.id === "lowerRateLimit" && currentUpperRate !== undefined) {
+              if (numValue > currentUpperRate) {
+                isValid = false;
+              }
+            } else if (param.id === "upperRateLimit" && currentLowerRate !== undefined) {
+              if (numValue < currentLowerRate) {
+                isValid = false;
+              }
             }
           } else if (param.type === "select") {
             if (param.options && !param.options.includes(numValue)) {
               isValid = false;
             }
           }
+          
           return {
             ...param,
             value: numValue,
@@ -764,9 +778,53 @@ export function ParametersTable({
             isValid,
           };
         }
+        
+        // Revalidate the other rate limit when one changes
+        if (
+          (id === "lowerRateLimit" && param.id === "upperRateLimit") ||
+          (id === "upperRateLimit" && param.id === "lowerRateLimit")
+        ) {
+          const newLowerRate = id === "lowerRateLimit" ? value : currentLowerRate;
+          const newUpperRate = id === "upperRateLimit" ? value : currentUpperRate;
+          
+          let isValid = param.isValid !== false; // preserve other validation
+          if (newLowerRate !== undefined && newUpperRate !== undefined) {
+            if (param.id === "lowerRateLimit" && newLowerRate > newUpperRate) {
+              isValid = false;
+            } else if (param.id === "upperRateLimit" && newUpperRate < newLowerRate) {
+              isValid = false;
+            } else if (param.id === "lowerRateLimit" && newLowerRate <= newUpperRate) {
+              // Re-validate if it was previously invalid due to cross-validation
+              isValid = true;
+              // Still check against min/max
+              if (param.min !== undefined && param.value < param.min) {
+                isValid = false;
+              }
+              if (param.max !== undefined && param.value > param.max) {
+                isValid = false;
+              }
+            } else if (param.id === "upperRateLimit" && newUpperRate >= newLowerRate) {
+              // Re-validate if it was previously invalid due to cross-validation
+              isValid = true;
+              // Still check against min/max
+              if (param.min !== undefined && param.value < param.min) {
+                isValid = false;
+              }
+              if (param.max !== undefined && param.value > param.max) {
+                isValid = false;
+              }
+            }
+          }
+          
+          return {
+            ...param,
+            isValid,
+          };
+        }
+        
         return param;
-      })
-    );
+      });
+    });
     setHasChanges(true);
   };
 
@@ -847,23 +905,14 @@ export function ParametersTable({
     };
 
     // Reset all parameters to nominal values
-<<<<<<< HEAD
-    setParameters(prev => prev.map(param => ({
-      ...param,
-      value: nominalValues[param.id] ?? param.value, // only checks for null or undefined
-      isDirty: true, // mark as dirty
-      isValid: true
-    })));
-=======
     setParameters((prev) =>
       prev.map((param) => ({
         ...param,
-        value: nominalValues[param.id] ?? param.value,
-        isDirty: true,
+        value: nominalValues[param.id] ?? param.value, // only checks for null or undefined
+        isDirty: true, // mark as dirty
         isValid: true,
       }))
     );
->>>>>>> 68ea9ea5bd71b0d4c9d7ec1fbc04448bac9bcb85
     setHasChanges(true);
   };
 
@@ -912,10 +961,7 @@ export function ParametersTable({
     if (selectedPatient?.id) {
       saveToLocalStorage(selectedPatient.id, parameterValues);
     }
-<<<<<<< HEAD
-=======
 
->>>>>>> 68ea9ea5bd71b0d4c9d7ec1fbc04448bac9bcb85
     onParameterSaved(parameterValues);
     setParameters((prev) => prev.map((p) => ({ ...p, isDirty: false })));
     setHasChanges(false);
@@ -957,10 +1003,7 @@ export function ParametersTable({
     if (param.step === "custom" && param.id === "lowerRateLimit") {
       return getLowerRateLimitStep(Number(param.value));
     }
-<<<<<<< HEAD
-=======
 
->>>>>>> 68ea9ea5bd71b0d4c9d7ec1fbc04448bac9bcb85
     return param.step as number;
   };
 
@@ -1133,8 +1176,7 @@ export function ParametersTable({
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {invalidCount} parameter(s) have invalid values. Please correct them
-            before saving.
+            Error invalid values. Lower Rate Limit cannot exceed Upper Rate Limit.
           </AlertDescription>
         </Alert>
       )}

@@ -477,7 +477,11 @@ export default function App() {
               </div>
             )}
 
-            {activeTab === "egm" && <EKGViewer />}
+            {activeTab === "egm" && (
+              <EKGViewer 
+                isDeviceConnected={telemetryState.connectionState === "Connected"}
+              />
+            )}
 
             {activeTab === "reports" && selectedPatient && <ReportsPanel selectedPatient={selectedPatient} />}
             {activeTab === "about" && (
