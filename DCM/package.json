@@ -53,7 +53,7 @@
     "vite": "^6.4.1"
   },
   "scripts": {
-  "dev": "concurrently -k \"python -u serial.py\" \"vite\"",
-  "build": "vite build"
+    "dev": "concurrently -k \"python -u serial.py\" \"vite\"",
+    "build": "vite build"
   }
 }
