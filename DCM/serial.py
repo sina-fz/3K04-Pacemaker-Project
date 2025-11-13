@@ -3,10 +3,14 @@ import websockets
 import time
 import json
 
+import struct
+import serial
+
 connected = set()
 
 class PacemakerInputs_template:
     def __init__(self):
+        self.mode = 0
         self.lowerRateLimit = 0
         self.upperRateLimit = 0
         self.maximumSensorRate = 0
@@ -33,9 +37,48 @@ class PacemakerInputs_template:
         self.atrFallbackTime = 0
         self.ventricularBlanking = 0
         self.activityThreshold = 0
-        self.reactionTime = 0
-        self.responseFactor = 0
-        self.recoveryTime = 0
+        self.reactionTime_float = 0
+        self.responseFactor_float = 0
+        self.recoveryTime_float = 0
+
+    def mapData(self,message):
+        print("Data Mapped")
+        in_data = json.loads(message)                                                     
+        for key, value in in_data.items():
+            if hasattr(PacemakerInputs, key):  # check if the attribute exists
+                setattr(PacemakerInputs, key, value)
+        print(PacemakerInputs.lowerRateLimit)
+
+    def sendData(self):
+            port = "COM3"
+            baudrate = 115200
+
+            try:
+                ser = serial.Serial(port, baudrate=baudrate, timeout=1)
+                # Start of packet 
+                packet = bytearray()
+                packet.append(0x16)  # SYNC byte
+                #packet.append(0x55)  # Function code
+
+                for key, value in self.__dict__.items():
+                    # Handle unsigned 32-bit integers
+                    if key.endswith("_u32"):
+                        packet.extend(struct.pack('<I', int(value)))  # little endian 
+                    # Handle floats
+                    elif key.endswith("_float") or isinstance(value, float):
+                        packet.extend(struct.pack('<f', float(value)))
+                    else:
+                        # default to float for amplitude/sensitivity-like values
+                        packet.extend(struct.pack('<f', float(value)))
+
+                ser.write(packet)
+                ser.flush()
+
+            except serial.SerialException as e:
+                print(f"Serial error: {e}")
+            finally:
+                if 'ser' in locals() and ser.is_open:
+                    ser.close()
 
 class ECGData_template:
     def __init__(self):            
@@ -50,14 +93,15 @@ ECGData = ECGData_template()
 
 
 async def handler(websocket):
+    global PacemakerInputs
+    global ECGData
+
+    #global connectionStarted
+
     try:
         connected.add(websocket)
         async for message in websocket:
-            in_data = json.loads(message)
-            for key, value in in_data.items():
-                if hasattr(PacemakerInputs, key):  # check if the attribute exists
-                    setattr(PacemakerInputs, key, value)
-            print(PacemakerInputs.lowerRateLimit)
+            PacemakerInputs.mapData(message)
             await websocket.send(f"Echo: {message}")
     except websockets.exceptions.ConnectionClosedError:
         #print("Frontend disconnected unexpectedly")
@@ -65,7 +109,6 @@ async def handler(websocket):
     except Exception:
         pass
     finally:
-        connectionStarted = False
         connected.remove(websocket)
 
 connectionStarted = False
