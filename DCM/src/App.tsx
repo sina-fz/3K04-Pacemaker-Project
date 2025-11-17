@@ -67,7 +67,11 @@ export default function App() {
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
-
+  const [ekgData, setEkgData] = useState<{
+    Atrial?: {x: number, y: number}[],
+    Ventricular?: {x: number, y: number}[],
+    ECG?: {x: number, y: number}[]
+  } | null>(null);
 //////////////////////////////
 const wsRef = useRef<WebSocket | null>(null);
 
@@ -88,7 +92,36 @@ useEffect(() => {
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      console.log("Message from Python:", event.data);
+      const rawData = event.data;
+      // console.log("Raw data:", rawData);
+      // Handle echo messages (they start with "Echo: ")
+      if (rawData.startsWith('Echo: ')) {
+        return; // Ignore echo messages
+      }
+      
+      // Try to parse as JSON
+      try {
+        const data = JSON.parse(rawData);
+        // console.log("Data:", data.type);
+        
+        if (data.type === 'ekg' || data.type === 'egm') {
+          // console.log("Data:", data.type);
+          // EKG/EGM data received - update state
+          
+          setEkgData({
+            Atrial: data.Atrial,
+            Ventricular: data.Ventricular,
+            ECG: data.ECG
+          });
+        } else {
+          console.log("Message from Python:", rawData);
+        }
+      } catch (e) {
+        // If it's not valid JSON and not an echo, log it
+        if (!rawData.startsWith('Echo: ')) {
+          console.log("Error parsing message:", e, "Raw data:", rawData);
+        }
+      }
     };
 
     ws.onclose = () => {
@@ -532,6 +565,7 @@ useEffect(() => {
             {activeTab === "egm" && (
               <EKGViewer 
                 isDeviceConnected={telemetryState.connectionState === "Connected"}
+                channelData={ekgData || undefined}
               />
             )}
 

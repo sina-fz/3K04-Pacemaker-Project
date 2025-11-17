@@ -5,6 +5,7 @@ import json
 
 import struct
 import serial
+import math # for ekg testing 
 
 connected = set()
 
@@ -88,6 +89,33 @@ class ECGData_template:
         self.VentPulse = 0
         self.Time = 0
 
+async def egm_simulator(websocket):
+    t = 0.0
+    dt = 0.1
+    window_seconds = 3.2
+    max_points = int(window_seconds / dt)
+    egm_data = {  # Fixed: emg -> egm
+        "type": "ekg",  # Changed to "ekg" to match frontend expectations
+        "Atrial": [], 
+        "Ventricular": [],
+        "ECG": []
+    }
+    while True: 
+        t += dt
+        atrial_val = 5.0 * math.sin(2 * math.pi * 1.0 * t)
+        ventricular_val = 12.0 * math.sin(2 * math.pi * 1.0 * t + 0.6)
+        ecg_val = atrial_val * 0.5 + ventricular_val * 0.8
+        egm_data["Atrial"].append({"x": t, "y": atrial_val})
+        egm_data["Ventricular"].append({"x": t, "y": ventricular_val})
+        egm_data["ECG"].append({"x": t, "y": ecg_val})
+        for key in ["Atrial", "Ventricular", "ECG"]:
+            if len(egm_data[key]) > max_points:
+                egm_data[key].pop(0)
+        # send data to frontend
+        await websocket.send(json.dumps(egm_data))
+        # sample interval
+        await asyncio.sleep(dt)
+
 PacemakerInputs = PacemakerInputs_template()
 ECGData = ECGData_template()
 
@@ -100,6 +128,7 @@ async def handler(websocket):
 
     try:
         connected.add(websocket)
+        egm_task = asyncio.create_task(egm_simulator(websocket))
         async for message in websocket:
             PacemakerInputs.mapData(message)
             await websocket.send(f"Echo: {message}")
@@ -109,7 +138,13 @@ async def handler(websocket):
     except Exception:
         pass
     finally:
+        egm_task.cancel()
+        try:
+            await egm_task
+        except asyncio.CancelledError:
+            pass
         connected.remove(websocket)
+
 
 connectionStarted = False
 
