@@ -8,6 +8,7 @@ import serial
 import math # for ekg testing 
 
 connected = set()
+device_connected = {}  # Track connection state per websocket
 
 class PacemakerInputs_template:
     def __init__(self):
@@ -91,8 +92,8 @@ class ECGData_template:
 
 async def egm_simulator(websocket):
     t = 0.0
-    dt = 0.1
-    window_seconds = 100
+    dt = 0.004  # 4ms between points = 250 Hz sampling rate
+    window_seconds = 10.0  # Keep last 10 seconds of data
     max_points = int(window_seconds / dt)
     egm_data = {  # Fixed: emg -> egm
         "type": "ekg",  # Changed to "ekg" to match frontend expectations
@@ -124,19 +125,54 @@ async def handler(websocket):
     global PacemakerInputs
     global ECGData
 
-    #global connectionStarted
-
     try:
         connected.add(websocket)
+        device_connected[websocket] = False  # Initially not connected to device
         egm_task = asyncio.create_task(egm_simulator(websocket))
+        
         async for message in websocket:
-            PacemakerInputs.mapData(message)
-            await websocket.send(f"Echo: {message}")
+            # Try to parse as JSON for structured messages
+            try:
+                data = json.loads(message)
+                msg_type = data.get("type")
+                
+                if msg_type == "CONNECT_REQUEST":
+                    # Simulate device connection (NEEDS TO BE REPLACED WITH ACTUAL SERIAL CONNECTION LOGIC)
+                    device_connected[websocket] = True
+                    response = {
+                        "type": "CONNECTION_STATUS",
+                        "state": "Connected"
+                    }
+                    await websocket.send(json.dumps(response))
+                    print("Device connected")
+                    
+                elif msg_type == "DISCONNECT_REQUEST":
+                    # Simulate device disconnection (NEEDS TO BE REPLACED WITH ACTUAL SERIAL DISCONNECTION LOGIC)
+                    device_connected[websocket] = False
+                    response = {
+                        "type": "CONNECTION_STATUS",
+                        "state": "Lost"
+                    }
+                    await websocket.send(json.dumps(response))
+                    print("Device disconnected")
+                    
+                else:
+                    # Handle parameter data or other messages
+                    PacemakerInputs.mapData(message)
+                    await websocket.send(f"Echo: {message}")
+                    
+            except json.JSONDecodeError:
+                # If not JSON, try to map as parameter data
+                try:
+                    PacemakerInputs.mapData(message)
+                    await websocket.send(f"Echo: {message}")
+                except:
+                    pass
+                    
     except websockets.exceptions.ConnectionClosedError:
-        #print("Frontend disconnected unexpectedly")
         pass
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error in handler: {e}")
     finally:
         egm_task.cancel()
         try:
@@ -144,6 +180,8 @@ async def handler(websocket):
         except asyncio.CancelledError:
             pass
         connected.remove(websocket)
+        if websocket in device_connected:
+            del device_connected[websocket]
 
 
 connectionStarted = False

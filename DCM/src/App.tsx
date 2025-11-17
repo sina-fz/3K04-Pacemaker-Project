@@ -93,7 +93,7 @@ useEffect(() => {
 
     ws.onmessage = (event: MessageEvent) => {
       const rawData = event.data;
-      // console.log("Raw data:", rawData);
+      
       // Handle echo messages (they start with "Echo: ")
       if (rawData.startsWith('Echo: ')) {
         return; // Ignore echo messages
@@ -102,17 +102,22 @@ useEffect(() => {
       // Try to parse as JSON
       try {
         const data = JSON.parse(rawData);
-        // console.log("Data:", data.type);
         
+        // Handle different message types
         if (data.type === 'ekg' || data.type === 'egm') {
-          // console.log("Data:", data.type);
           // EKG/EGM data received - update state
-          
           setEkgData({
             Atrial: data.Atrial,
             Ventricular: data.Ventricular,
             ECG: data.ECG
           });
+        } else if (data.type === "CONNECTION_STATUS") {
+          // Connection status updates from Python
+          setTelemetryState({
+            connectionState: data.state,
+            isConnecting: false,
+          });
+          console.log("Device connection state updated to:", data.state);
         } else {
           console.log("Message from Python:", rawData);
         }
@@ -285,6 +290,46 @@ useEffect(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
       console.log("Sent to pacemaker via WebSocket:", data);
+      
+      // Update last interrogation timestamp
+      const timestamp = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Update the current user's patient data with new timestamp
+      setSavedUsers((prev) =>
+        prev.map((user) =>
+          user.username === currentUser
+            ? { 
+                ...user, 
+                patientData: { 
+                  ...user.patientData, 
+                  device: {
+                    ...user.patientData.device,
+                    lastInterrogation: timestamp
+                  }
+                } 
+              }
+            : user
+        )
+      );
+      
+      // Update the selected patient with new timestamp
+      setSelectedPatient((prev) => 
+        prev ? { 
+          ...prev, 
+          device: {
+            ...prev.device,
+            lastInterrogation: timestamp
+          }
+        } : null
+      );
+      
     } else {
       console.error("WebSocket is not connected. Cannot send parameters.");
     }
@@ -299,25 +344,28 @@ useEffect(() => {
 
   const handleConnect = () => {
     setTelemetryState((prev) => ({ ...prev, isConnecting: true }));
-    // Simulate connection process
-    setTimeout(() => {
+    
+    // Send connection request to Python backend
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = { type: "CONNECT_REQUEST" };
+      wsRef.current.send(JSON.stringify(message));
+      console.log("Sent CONNECT_REQUEST to Python backend");
+    } else {
+      console.error("WebSocket not connected to Python backend");
       setTelemetryState({
-        connectionState: "Connected",
+        connectionState: "Lost",
         isConnecting: false,
       });
-    }, 500);
+    }
   };
 
   const handleDisconnect = () => {
-    setTelemetryState({
-      connectionState: "Lost",
-      isConnecting: false,
-    });
-
-    const handleRetry = () => {
-      handleConnect();
-    };
-    const isConnected = telemetryState.connectionState === "Connected";
+    // Send disconnection request to Python backend
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = { type: "DISCONNECT_REQUEST" };
+      wsRef.current.send(JSON.stringify(message));
+      console.log("Sent DISCONNECT_REQUEST to Python backend");
+    }
   };
 
   const handleRetry = () => {
@@ -510,7 +558,7 @@ useEffect(() => {
                                   Device Model
                                 </p>
                                 <p className="font-medium">
-                                  {currentUserData.patientData.device.model}
+                                  {selectedPatient.device.model}
                                 </p>
                               </div>
                               <div>
@@ -518,10 +566,7 @@ useEffect(() => {
                                   Serial Number
                                 </p>
                                 <p className="font-medium font-mono text-sm text-[16px] font-bold">
-                                  {
-                                    currentUserData.patientData.device
-                                      .serialNumber
-                                  }
+                                  {selectedPatient.device.serialNumber}
                                 </p>
                               </div>
                             </div>
@@ -531,10 +576,7 @@ useEffect(() => {
                                 Last Interrogation
                               </p>
                               <p className="font-medium">
-                                {
-                                  currentUserData.patientData.device
-                                    .lastInterrogation
-                                }
+                                {selectedPatient.device.lastInterrogation}
                               </p>
                             </div>
                           </div>

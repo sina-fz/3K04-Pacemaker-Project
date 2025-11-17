@@ -246,32 +246,25 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
           // Get the channel-specific gain
           const channelGain = channelGains[channel.toLowerCase() as keyof typeof channelGains];
           
-          // Calculate the total width of the data in pixels
-          const maxDataX = Math.max(...data.map(p => p.x));
-          const dataWidth = maxDataX * timeScale[0];
+          let isFirstPoint = true;
           
-          // Draw the data multiple times to create a seamless loop
-          for (let repeatOffset = -dataWidth; repeatOffset < displayWidth + dataWidth; repeatOffset += dataWidth) {
-            let isFirstPoint = true;
+          data.forEach((point) => {
+            // Apply time scale and scroll offset
+            const x = (point.x * timeScale[0]) - scrollOffset;
             
-            data.forEach((point) => {
-              // Apply time scale, scroll offset, and repeat offset for looping
-              const x = (point.x * timeScale[0]) - (scrollOffset % dataWidth) + repeatOffset;
-              
-              // Apply both master gain and channel-specific gain
-              const y = yOffset - (point.y * gain[0] * channelGain);
-              
-              // Only draw points that are visible on the canvas
-              if (x >= 0 && x <= displayWidth) {
-                if (isFirstPoint) {
-                  ctx.moveTo(x, y);
-                  isFirstPoint = false;
-                } else {
-                  ctx.lineTo(x, y);
-                }
+            // Apply both master gain and channel-specific gain
+            const y = yOffset - (point.y * gain[0] * channelGain);
+            
+            // Only draw points that are visible on the canvas
+            if (x >= 0 && x <= displayWidth) {
+              if (isFirstPoint) {
+                ctx.moveTo(x, y);
+                isFirstPoint = false;
+              } else {
+                ctx.lineTo(x, y);
               }
-            });
-          }
+            }
+          });
         }
         // If no data, leave the channel blank (no fallback)
         
@@ -425,7 +418,7 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
                     value={timeScale}
                     onValueChange={setTimeScale}
                     min={0.1}
-                    max={3}
+                    max={10}
                     step={0.1}
                     className="flex-1"
                   />

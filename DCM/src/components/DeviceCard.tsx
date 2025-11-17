@@ -27,7 +27,7 @@ const batteryLabels = {
 };
 
 // renders the device information card
-export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStatus, patientName }: DeviceCardProps) {
+export function DeviceCard({ model, serialNumber, lastInterrogation: lastSaved, batteryStatus, patientName }: DeviceCardProps) {
     return (
         <Card className="w-full">
         <CardHeader className="pb-3">
@@ -72,7 +72,7 @@ export function DeviceCard({ model, serialNumber, lastInterrogation, batteryStat
                 <Clock className="h-4 w-4" />
                 <span>Last Interrogation</span>
             </div>
-            <p className="text-sm font-medium">{lastInterrogation}</p>
+            <p className="text-sm font-medium">{lastSaved}</p>
           </div>
         </div>
       </CardContent>
