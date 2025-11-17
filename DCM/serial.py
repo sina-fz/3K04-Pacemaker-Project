@@ -92,7 +92,7 @@ class ECGData_template:
 async def egm_simulator(websocket):
     t = 0.0
     dt = 0.1
-    window_seconds = 3.2
+    window_seconds = 100
     max_points = int(window_seconds / dt)
     egm_data = {  # Fixed: emg -> egm
         "type": "ekg",  # Changed to "ekg" to match frontend expectations
