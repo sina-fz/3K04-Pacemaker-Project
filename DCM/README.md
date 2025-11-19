@@ -19,6 +19,8 @@ Linux Node Setup:
 ```powershell
 cd "C:\...\3K04-Pacemaker-Project\DCM"
 npm install
+pip install websockets
+pip install pyserial
 ```
 
 Run the dev server:
@@ -47,6 +49,7 @@ DCM/
 index.html # App shell (root <div id="root" />)
 package.json # Scripts and deps
 vite.config.ts # Vite config
+serialComm.py # Python Middleware 
 images/ # Static images
 imports/ # Extra TS/TSX assets for charts/icons
 Parameters.tsx

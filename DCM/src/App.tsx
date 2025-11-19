@@ -138,7 +138,7 @@ useEffect(() => {
   connect();
 
   return () => {
-    if (wsRef.current) wsRef.current.close();
+    //if (wsRef.current) wsRef.current.close();
     if (retryTimeout) clearTimeout(retryTimeout);
   };
 }, []);
