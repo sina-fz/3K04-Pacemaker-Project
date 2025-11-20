@@ -12,10 +12,9 @@ device_connected = {}  # Track connection state per websocket
 
 class PacemakerInputs_template:
     def __init__(self):
-        self.port = "COM1" #CHANGE TO COM3
+        self.port = "COM4" #CHANGE TO COM3
         self.baudrate = 115200
         self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
-        
 
         self.mode = 0
         self.lowerRateLimit = 0
@@ -48,7 +47,7 @@ class PacemakerInputs_template:
         self.responseFactor = 0
         self.recoveryTime = 0
 
-        self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220}
+        self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220, "DDDR": 3330}
 
     def mapData(self,message):
         in_data = json.loads(message)                                                     
@@ -66,7 +65,10 @@ class PacemakerInputs_template:
             self.mode = 0            
 
         print("Selected mode: ", self.mode) 
-        self.sendData()
+        if self.ser.is_open:
+            print("Port is open and sending data")
+            self.sendData()
+        
 
     def sendData(self):
         if not self.ser.is_open:
@@ -78,44 +80,39 @@ class PacemakerInputs_template:
         try:
             # Start of packet 
             packet = bytearray()
-            packet.append(0x16)  # SYNC byte
-            packet.append(0x55)  # Function code
-            # for key, value in self.__dict__.items():
-            #     # Handle unsigned 32-bit integers
-            #     if key.endswith("_u32"):
-            #         packet.extend(struct.pack('<I', int(value)))  # little endian 
+            packet.append(0x16)  # SYNC byte 1
+            packet.append(0x55)  # Function code byte 2
 
-            packet.extend(struct.pack('<I', int(self.mode)))
-            packet.extend(struct.pack('<I', int(self.upperRateLimit)))
-            packet.extend(struct.pack('<I', int(self.lowerRateLimit)))
+            packet.extend(struct.pack('<I', int(self.mode))) # bytes 3-6
+            packet.extend(struct.pack('<I', int(self.upperRateLimit))) # bytes 7-10
+            packet.extend(struct.pack('<I', int(self.lowerRateLimit))) # bytes 11-14
 
-            packet.extend(struct.pack('<f', float(self.atrialAmplitudeUnregulated)))
+            packet.extend(struct.pack('<f', float(self.atrialAmplitudeUnregulated))) # bytes 15-18
 
-            packet.extend(struct.pack('<d', float(self.atrialPulseWidth)))
+            packet.extend(struct.pack('<d', float(self.atrialPulseWidth))) # bytes 19-26
 
-            packet.extend(struct.pack('<f', float(self.ventricularAmplitudeUnregulated)))
+            packet.extend(struct.pack('<f', float(self.ventricularAmplitudeUnregulated))) #bytes 27-30
 
-            packet.extend(struct.pack('<d', float(self.ventricularPulseWidth))) #GPT says doubles via serial comm are tricky
+            packet.extend(struct.pack('<d', float(self.ventricularPulseWidth))) #bytes 31-38
 
-            packet.extend(struct.pack('<I', int(self.atrialRefractoryPeriod)))
-            packet.extend(struct.pack('<I', int(self.pvarp)))
-            packet.extend(struct.pack('<I', int(self.hysteresisRateLimit)))
+            packet.extend(struct.pack('<I', int(self.atrialRefractoryPeriod))) #bytes 39-42
+            packet.extend(struct.pack('<I', int(self.pvarp))) #bytes 43-46
+            packet.extend(struct.pack('<I', int(self.hysteresisRateLimit))) #bytes 47-50
 
-            packet.extend(struct.pack('<d', float(self.rateSmoothing)))
-            packet.extend(struct.pack('<d', float(self.rateSmoothing)))
+            packet.extend(struct.pack('<d', float(self.rateSmoothing))) #bytes 51-58
+            packet.extend(struct.pack('<d', float(self.rateSmoothing))) #bytes 59-66
             
-            packet.extend(struct.pack('<f', float(self.atrialSensitivity)))
-            packet.extend(struct.pack('<f', float(self.ventricularSensitivity)))
+            packet.extend(struct.pack('<f', float(self.atrialSensitivity))) #bytes 67-70
+            packet.extend(struct.pack('<f', float(self.ventricularSensitivity))) #bytes 71-74
 
-            packet.extend(struct.pack('<I', int(self.ventricularRefractoryPeriod)))
-            packet.extend(struct.pack('<I', int(self.activityThreshold)))
-            packet.extend(struct.pack('<I', int(self.reactionTime)))
-            packet.extend(struct.pack('<I', int(self.responseFactor)))
-            packet.extend(struct.pack('<I', int(self.recoveryTime)))
-            packet.extend(struct.pack('<I', int(self.maximumSensorRate)))
+            packet.extend(struct.pack('<I', int(self.ventricularRefractoryPeriod))) #bytes 75-78
+            packet.extend(struct.pack('<I', int(self.activityThreshold))) #bytes 79-82
+            packet.extend(struct.pack('<I', int(self.reactionTime))) #bytes 83-86
+            packet.extend(struct.pack('<I', int(self.responseFactor))) #bytes 87-90
+            packet.extend(struct.pack('<I', int(self.recoveryTime))) #bytes 91-94
+            packet.extend(struct.pack('<I', int(self.maximumSensorRate))) #bytes 95-98
 
-            packet.extend(struct.pack('<B', int(self.hysteresisRateLimit))) #missing HFLag from DCM
-
+            packet.extend(struct.pack('<B', 0)) #byte 99
             self.ser.write(packet)
             self.ser.flush()
 
@@ -128,22 +125,35 @@ class PacemakerInputs_template:
 
     async def awaitEKGData(self):
         while True:
-            if self.ser.is_open:
-                print("Awaiting")
-                try:
-                    # Check if at least 4 bytes are available (size of uint32)
-                    if self.ser.in_waiting >= 4:
-                        raw = self.ser.read(4)  # Read 4 bytes
-                        value = struct.unpack('<I', raw)[0]  # Little-endian uint32
-                        print("Received EKG data from board:", value)
-                        #Send to DCM
-                except serial.SerialException as e:
-                    print(f"Serial error: {e}")
-                    self.close()  # Close port if error occurs
-            else:
+            if not self.ser.is_open:
                 return
-            # Wait 1 ms before checking again
+
+            try:
+                if self.ser.in_waiting >= 18:
+                    packet = self.ser.read(18)
+
+                    # Check header bytes
+                    if packet[0] != 0x16 or packet[1] != 0x50:
+                        # DO NOT map the data
+                        continue
+
+                    # Extract payload (16 bytes)
+                    payload = packet[2:18]
+
+                    a1, a2 = struct.unpack('<BB', packet[1:2]) 
+
+                    f1, f2, f3, f4 = struct.unpack('<ffff', payload)
+
+                    print("EKG Data:", a1, a2, f1, f2, f3, f4)
+
+
+            except serial.SerialException as e:
+                print(f"Serial error: {e}")
+                self.close()
+                return
+
             await asyncio.sleep(0.001)
+
 
     
     def close(self):
@@ -282,23 +292,11 @@ async def wait_for_connection():
                 print("Awaiting Websocket to Front End...")
                 if connectionStarted == True:
                     connectionStarted = False
-                if PacemakerInputs.ser.is_open:                
-                    try:
-                        PacemakerInputs.ser.close()
-                        print("Serial port closed")
-                    except:
-                        print("Serial failure on close: {e}")
                 await asyncio.sleep(2)
             else:
                 if connectionStarted == False:
                     print("Connected to DCM")
                     connectionStarted = True
-                if not PacemakerInputs.ser.is_open:                
-                    try:
-                        PacemakerInputs.ser.open()
-                        print("Serial port opened")
-                    except serial.SerialException as e:                        
-                        print("Serial failure on reopen: {e}")
                 await asyncio.sleep(1)  # Maintain connection once active
 
 if __name__ == "__main__":
