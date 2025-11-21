@@ -72,6 +72,10 @@ export default function App() {
     Ventricular?: {x: number, y: number}[],
     ECG?: {x: number, y: number}[]
   } | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<{
+    status: "pending" | "verified" | "failed" | null,
+    message: string
+  }>({ status: null, message: "" });
 //////////////////////////////
 const wsRef = useRef<WebSocket | null>(null);
 
@@ -118,6 +122,13 @@ useEffect(() => {
             isConnecting: false,
           });
           console.log("Device connection state updated to:", data.state);
+        } else if (data.type === "PARAMETER_VERIFICATION") {
+          // Parameter verification status from Python
+          setVerificationStatus({
+            status: data.status,
+            message: data.message
+          });
+          console.log("Parameter verification:", data.status, "-", data.message);
         } else {
           console.log("Message from Python:", rawData);
         }
@@ -205,7 +216,7 @@ useEffect(() => {
         setSelectedPatient(user.patientData);
       }
     }
-  });
+  }, [isLoggedIn, currentUser, savedUsers]); // Added dependency array to prevent infinite loop
   const handleLogin = (username: string, password: string): boolean => {
     const user = savedUsers.find(
       (u) => u.username === username && u.password === password
@@ -288,6 +299,9 @@ useEffect(() => {
 
   const handleSendToPacemaker = (data: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Set verification status to pending when sending
+      setVerificationStatus({ status: "pending", message: "Waiting for verification..." });
+      
       wsRef.current.send(JSON.stringify(data));
       console.log("Sent to pacemaker via WebSocket:", data);
       
@@ -600,6 +614,7 @@ useEffect(() => {
                   selectedPatient={selectedPatient}
                   onParameterSaved={handleParametersSaved}
                   onSendToPacemaker={handleSendToPacemaker}
+                  verificationStatus={verificationStatus}
                 />
               </div>
             )}

@@ -14,7 +14,8 @@ class PacemakerInputs_template:
     def __init__(self):
         self.port = "COM4" #CHANGE TO COM3
         self.baudrate = 115200
-        self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
+        #self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
+        self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1)
 
         self.mode = 0
         self.lowerRateLimit = 0
@@ -116,7 +117,19 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
-            print("Data Sent to Board")
+            print("Parameters sent to pacemaker")
+            
+            # ====== FOR TESTING WILL NEED TO REMOVE LATER ======
+            # Create echo packet with header 0x16 0x56
+            echo_packet = bytearray()
+            echo_packet.append(0x16)  # SYNC byte 1
+            echo_packet.append(0x56)  # Echo function code byte 2
+
+            echo_packet.extend(packet[2:])  # copy them to simulate the echo from pacemaker
+            
+            self.ser.write(echo_packet)
+            self.ser.flush()
+            # ====================================================
 
         except serial.SerialException as e:
             print(f"Serial error: {e}")
@@ -129,12 +142,15 @@ class PacemakerInputs_template:
                 return
 
             try:
+                if self.ser.in_waiting >= 99:
+                    await asyncio.sleep(0.01)  # Give verification task time to process
+                    continue
+                
                 if self.ser.in_waiting >= 18:
                     packet = self.ser.read(18)
 
                     # Check header bytes
                     if packet[0] != 0x16 or packet[1] != 0x50:
-                        # DO NOT map the data
                         continue
 
                     # Extract payload (16 bytes)
@@ -154,8 +170,125 @@ class PacemakerInputs_template:
 
             await asyncio.sleep(0.001)
 
+    # waits for echoed parameters to verify them with sent parameters
+    async def awaitEchoedParameters(self, websocket):
+        while True:
+            if not self.ser.is_open:
+                return
 
-    
+            try:
+                # Wait for 99-byte echo packet (same size as sent packet)
+                if self.ser.in_waiting >= 99:
+                    packet = self.ser.read(99)
+
+                    # Check header bytes for echo packet
+                    if packet[0] != 0x16 or packet[1] != 0x56:
+                        continue
+
+                    print("Received echoed parameters from pacemaker")
+
+                    # Unpack echoed parameters from packet
+                    # echoed_mode = struct.unpack
+                    # echoed_upperRateLimit = struct.unpack
+                    # echoed_lowerRateLimit = struct.unpack
+                    # echoed_atrialAmplitudeUnregulated = struct.unpack
+                    # echoed_atrialPulseWidth = struct.unpack
+                    # echoed_ventricularAmplitudeUnregulated = struct.unpack
+                    # echoed_ventricularPulseWidth = struct.unpack
+                    # echoed_atrialRefractoryPeriod = struct.unpack
+                    # echoed_pvarp = struct.unpack
+                    # echoed_hysteresisRateLimit = struct.unpack
+                    # echoed_rateSmoothing = struct.unpack
+                    # echoed_atrialSensitivity = struct.unpack
+                    # echoed_ventricularSensitivity = struct.unpack
+                    # echoed_ventricularRefractoryPeriod = struct.unpack
+                    # echoed_activityThreshold = struct.unpack
+                    # echoed_reactionTime = struct.unpack
+                    # echoed_responseFactor = struct.unpack
+                    # echoed_recoveryTime = struct.unpack
+                    # echoed_maximumSensorRate = struct.unpack
+
+                    # Compare echoed parameters with sent parameters
+                    
+                    # verification_result = self.verifyParameters(echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit, ... )
+                    verification_result = True # assume true before unpacking just for testing (will implement line above after unpacking)
+                    if verification_result:
+                        print("Parameters verified successfully")
+                        # Send verification success to frontend
+                        verification_message = {
+                            "type": "PARAMETER_VERIFICATION",
+                            "status": "verified",
+                            "message": "Parameters received and verified"
+                        }
+                        await websocket.send(json.dumps(verification_message))
+                    else:
+                        print("Parameter verification failed")
+                        # Send verification failure to frontend
+                        verification_message = {
+                            "type": "PARAMETER_VERIFICATION",
+                            "status": "failed",
+                            "message": "Parameter mismatch detected"
+                        }
+                        await websocket.send(json.dumps(verification_message))
+
+            except serial.SerialException as e:
+                print(f"Serial error in parameter verification: {e}")
+                self.close()
+                return
+
+            await asyncio.sleep(0.01)
+
+    def verifyParameters(self, echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit,
+                        echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth,
+                        echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,
+                        echoed_atrialRefractoryPeriod, echoed_pvarp, echoed_hysteresisRateLimit,
+                        echoed_rateSmoothing, echoed_atrialSensitivity, echoed_ventricularSensitivity,
+                        echoed_ventricularRefractoryPeriod, echoed_activityThreshold,
+                        echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime,
+                        echoed_maximumSensorRate):
+        
+        # Compare sent and received values
+        # return False on first mismatch of parameter values
+        if echoed_mode != self.mode:
+            return False
+        if echoed_upperRateLimit != self.upperRateLimit:
+            return False
+        if echoed_lowerRateLimit != self.lowerRateLimit:
+            return False
+        if echoed_atrialRefractoryPeriod != self.atrialRefractoryPeriod:
+            return False
+        if echoed_pvarp != self.pvarp:
+            return False
+        if echoed_hysteresisRateLimit != self.hysteresisRateLimit:
+            return False
+        if echoed_ventricularRefractoryPeriod != self.ventricularRefractoryPeriod:
+            return False
+        if echoed_activityThreshold != self.activityThreshold:
+            return False
+        if echoed_reactionTime != self.reactionTime:
+            return False
+        if echoed_responseFactor != self.responseFactor:
+            return False
+        if echoed_recoveryTime != self.recoveryTime:
+            return False
+        if echoed_maximumSensorRate != self.maximumSensorRate:
+            return False
+        if echoed_atrialAmplitudeUnregulated != self.atrialAmplitudeUnregulated:
+            return False
+        if echoed_atrialPulseWidth != self.atrialPulseWidth:
+            return False
+        if echoed_ventricularAmplitudeUnregulated != self.ventricularAmplitudeUnregulated:
+            return False
+        if echoed_ventricularPulseWidth != self.ventricularPulseWidth:
+            return False
+        if echoed_rateSmoothing != self.rateSmoothing:
+            return False
+        if echoed_atrialSensitivity != self.atrialSensitivity:
+            return False
+        if echoed_ventricularSensitivity != self.ventricularSensitivity:
+            return False
+        return True
+
     def close(self):
         if hasattr(self, 'ser') and self.ser.is_open:
             self.ser.close()
@@ -220,7 +353,9 @@ async def handler(websocket):
         connected.add(websocket)
         device_connected[websocket] = False  # Initially not connected to device
         egm_task = asyncio.create_task(egm_simulator(websocket))
-        test_recieve = asyncio.create_task(PacemakerInputs.awaitEKGData()) 
+        test_recieve = asyncio.create_task(PacemakerInputs.awaitEKGData())
+        verification_task = asyncio.create_task(PacemakerInputs.awaitEchoedParameters(websocket))
+        
         async for message in websocket:
             # Try to parse as JSON for structured messages
             try:
@@ -266,9 +401,15 @@ async def handler(websocket):
     except Exception as e:
         print(f"Error in handler: {e}")
     finally:
+        # Cancel all tasks
         egm_task.cancel()
+        verification_task.cancel()
         try:
             await egm_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await verification_task
         except asyncio.CancelledError:
             pass
         connected.remove(websocket)

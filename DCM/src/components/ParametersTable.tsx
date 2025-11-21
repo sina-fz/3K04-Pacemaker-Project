@@ -35,7 +35,14 @@ interface ParametersTableProps {
   selectedPatient: any;
   onParameterSaved: (parameter: any) => void;
   onSendToPacemaker?: (parameters: any) => void;
+  verificationStatus?: {
+    status: "pending" | "verified" | "failed" | null;
+    message: string;
+  };
 }
+
+// Available modes for pacemaker
+const AVAILABLE_MODES = ["AOO", "VOO", "AAI", "VVI", "AOOR", "VOOR", "AAIR", "VVIR", "DDDR"];
 
 // Right side select mode button
 function ModeButton({
@@ -73,9 +80,11 @@ export function ParametersTable({
   selectedPatient,
   onParameterSaved,
   onSendToPacemaker,
+  verificationStatus,
 }: ParametersTableProps) {
   const [selectedMode, setSelectedMode] = useState("DDD"); // current selected pacing mode
   const [hasChanges, setHasChanges] = useState(false); // true when any parameters have been changed
+  const [modeUnavailableAlert, setModeUnavailableAlert] = useState(false); // alert for unavailable mode
 
   // builds initial parameter state
   const getInitialParameters = (): Parameter[] => {
@@ -1009,14 +1018,29 @@ export function ParametersTable({
     }
   };
 
+  // Handle mode selection with availability check
+  const handleModeSelection = (mode: string) => {
+    setSelectedMode(mode);
+    setHasChanges(true);
+    
+    if (!AVAILABLE_MODES.includes(mode)) {
+      setModeUnavailableAlert(true);
+    } else {
+      setModeUnavailableAlert(false);
+    }
+  };
+
   const invalidCount = parameters.filter((p) => p.isValid === false).length;
+  const isModeAvailable = AVAILABLE_MODES.includes(selectedMode);
   const canSave =
     hasChanges &&
     invalidCount === 0 &&
+    isModeAvailable &&
     parameters.every((p) => p.isValid !== false);
   const canSend =
     !hasChanges &&
     invalidCount === 0 &&
+    isModeAvailable &&
     parameters.every((p) => p.isValid !== false);
 
   const getStepValue = (param: Parameter): number | undefined => {
@@ -1204,6 +1228,17 @@ export function ParametersTable({
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Mode Unavailable Alert */}
+      {modeUnavailableAlert && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            This pacing mode is not available. 
+          </AlertDescription>
+        </Alert>
+      )}
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Parameter Sections */}
@@ -1487,10 +1522,7 @@ export function ParametersTable({
                       key={mode}
                       mode={mode}
                       isSelected={selectedMode === mode}
-                      onClick={() => {
-                        setSelectedMode(mode);
-                        setHasChanges(true);
-                      }}
+                      onClick={() => handleModeSelection(mode)}
                     />
                   ))}
                 </div>
@@ -1521,6 +1553,28 @@ export function ParametersTable({
                       {invalidCount > 0 ? `${invalidCount} errors` : "Valid"}
                     </Badge>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Received & Verified</span>
+                    <Badge
+                      variant={
+                        verificationStatus?.status === "verified"
+                          ? "default"
+                          : verificationStatus?.status === "failed"
+                          ? "destructive"
+                          : verificationStatus?.status === "pending"
+                          ? "secondary"
+                          : "outline"
+                      }
+                    >
+                      {verificationStatus?.status === "verified"
+                        ? "Verified"
+                        : verificationStatus?.status === "failed"
+                        ? "Failed"
+                        : verificationStatus?.status === "pending"
+                        ? "Pending..."
+                        : "Not sent"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
@@ -1539,6 +1593,7 @@ export function ParametersTable({
                   disabled={!canSave}
                   className="w-full h-11"
                   variant="outline"
+                  title={!isModeAvailable ? "Cannot save - mode not available" : !canSave ? "No changes to save or validation errors present" : ""}
                 >
                   Save Changes
                 </Button>
@@ -1547,6 +1602,7 @@ export function ParametersTable({
                   onClick={handleSendToPacemaker}
                   disabled={!canSend}
                   className="w-full h-11 bg-gray-900 hover:bg-gray-800"
+                  title={!isModeAvailable ? "Cannot send - mode not available" : !canSend ? "Save changes first or fix validation errors" : ""}
                 >
                   Send to Pacemaker
                 </Button>
