@@ -15,9 +15,11 @@ class PacemakerInputs_template:
         self.port = "COM4" #CHANGE TO COM3
         self.baudrate = 115200
         #self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
-        self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1)
+        self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1) # for testing
         
         self.waiting_for_device_info = False  # Flag to prevent other tasks from consuming device info response
+        self.serialNum = 0
+        self.deviceID = 0
 
         self.mode = 0
         self.lowerRateLimit = 0
@@ -52,6 +54,52 @@ class PacemakerInputs_template:
 
         self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220, "DDDR": 3330}
 
+    def requestHandshake(self):
+        packet = bytearray(99)
+        packet[0] = 0x16  # SYNC byte 1
+        packet[1] = 0x45  # Function code byte 2
+        packet[2] = 1 # Flag enable for serial handshake byte 3
+
+        self.ser.write(packet)
+        self.ser.flush()
+
+        print("Handshake Requested")
+        asyncio.create_task(self.awaitHandshake())
+
+    async def awaitHandshake(self):
+        while True:
+            if not self.ser.is_open:
+                print("Handshake error, serial port is not open")
+                return
+
+            try:
+                if self.ser.in_waiting < 18:
+                    await asyncio.sleep(0.0001)
+                    continue
+
+                # Read exactly 18 bytes
+                packet = self.ser.read(18)
+                
+                # Validate header bytes
+                if not(packet[0] == 0x16 and packet[1] == 0x22):
+                    # invalid packet, but port still active → keep looping
+                    await asyncio.sleep(0.0001)
+                    continue
+                
+                # Extract two uint32 values (little-endian)
+                self.serialNum = struct.unpack('<I', packet[2:6])[0]
+                self.deviceID  = struct.unpack('<I', packet[6:10])[0]
+
+                print("Device Serial Number:", self.serialNum)
+                print("Model #: ", self.deviceID)
+                return
+
+            except serial.SerialException as e:
+                print(f"Serial error in handshake: {e}")
+                self.close()
+                return
+ 
+
     def mapData(self,message):
         in_data = json.loads(message)                                                     
 
@@ -76,10 +124,12 @@ class PacemakerInputs_template:
     def sendData(self):
         if not self.ser.is_open:
             try:
-                self.ser.open()
+                # For loopback connections, we need to recreate the serial object
+                self.ser = serial.serial_for_url("loop://", baudrate=self.baudrate, timeout=1)
+                # self.ser.open()
                 print("Opened Serial Comm Port")
             except serial.SerialException as e:
-                print("Serial failure on reopen: {e}")
+                print(f"Serial failure on reopen: {e}")
         try:
             # Start of packet 
             packet = bytearray()
@@ -142,11 +192,22 @@ class PacemakerInputs_template:
     def sendDeviceInfoRequest(self):
         if not self.ser.is_open:
             try:
-                self.ser.open()
+                # For loopback connections, we need to recreate the serial object
+                self.ser = serial.serial_for_url("loop://", baudrate=self.baudrate, timeout=1)
+                # self.ser.open()
                 print("Opened serial comm port for device info request")
             except serial.SerialException as e:
                 print(f"Serial failure on open: {e}")
                 return False
+        
+        # Clear any stale data in the buffer
+        try:
+            if self.ser.in_waiting > 0:
+                self.ser.reset_input_buffer()
+                print(f"Cleared {self.ser.in_waiting} bytes from input buffer")
+        except:
+            pass
+            
         try:
             # Set flag to prevent other tasks from consuming the response
             self.waiting_for_device_info = True
@@ -165,6 +226,14 @@ class PacemakerInputs_template:
             
             # ====== FOR TESTING WILL NEED TO REMOVE LATER ======
             # Simulate device info response so that the frontend can be tested
+            import time
+            time.sleep(0.05)  # Small delay to ensure loopback is ready
+            
+            # In loopback mode, we need to consume the echoed request packet first
+            if self.ser.in_waiting >= 99:
+                self.ser.read(99)  # Discard the echoed request
+                print("Consumed echoed request packet (loopback mode)")
+            
             response_packet = bytearray()
             response_packet.append(0x16)  # SYNC byte 1
             response_packet.append(0x23)  # byte 2
@@ -185,12 +254,24 @@ class PacemakerInputs_template:
 
     # waits for device info response from pacemaker via serial
     async def awaitDeviceInfoResponse(self, websocket):
+        timeout = 5.0  # 5 second timeout
+        start_time = asyncio.get_event_loop().time()
+        
         while True:
+            # Check for timeout
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                print("Device info response timeout")
+                self.waiting_for_device_info = False
+                return None
+                
             if not self.ser.is_open:
+                print("Serial port closed during device info wait")
                 self.waiting_for_device_info = False
                 return None
             try:
-                if self.ser.in_waiting >= 99:
+                in_waiting = self.ser.in_waiting
+                if in_waiting >= 99:
+                    print(f"Found {in_waiting} bytes waiting, reading device info response...")
                     response_packet = self.ser.read(99)
                     
                     # Check header bytes for device info response
@@ -218,12 +299,16 @@ class PacemakerInputs_template:
                         }
                         await websocket.send(json.dumps(device_info))
                         return device_info
+                    else:
+                        print(f"Received packet with wrong headers: {response_packet[0]:02x} {response_packet[1]:02x}")
                         
             except serial.SerialException as e:
                 print(f"Serial error during device info wait: {e}")
                 self.waiting_for_device_info = False
                 self.close()
                 return None
+            except Exception as e:
+                print(f"Unexpected error during device info wait: {e}")
 
             await asyncio.sleep(0.01)
 
@@ -242,7 +327,8 @@ class PacemakerInputs_template:
                     packet = self.ser.read(18)
 
                     # Check header bytes
-                    if packet[0] != 0x16 or packet[1] != 0x50:
+                    if not(packet[0] == 0x15 and packet[1] == 0x50):
+                        await asyncio.sleep(0.001)
                         continue
                     # Extract payload (16 bytes)
                     payload = packet[2:18]
@@ -340,41 +426,41 @@ class PacemakerInputs_template:
         # return False on first mismatch of parameter values
         if echoed_mode != self.mode:
             return False
-        if echoed_upperRateLimit != self.upperRateLimit:
+        elif echoed_upperRateLimit != self.upperRateLimit:
             return False
-        if echoed_lowerRateLimit != self.lowerRateLimit:
+        elif echoed_lowerRateLimit != self.lowerRateLimit:
             return False
-        if echoed_atrialRefractoryPeriod != self.atrialRefractoryPeriod:
+        elif echoed_atrialRefractoryPeriod != self.atrialRefractoryPeriod:
             return False
-        if echoed_pvarp != self.pvarp:
+        elif echoed_pvarp != self.pvarp:
             return False
-        if echoed_hysteresisRateLimit != self.hysteresisRateLimit:
+        elif echoed_hysteresisRateLimit != self.hysteresisRateLimit:
             return False
-        if echoed_ventricularRefractoryPeriod != self.ventricularRefractoryPeriod:
+        elif echoed_ventricularRefractoryPeriod != self.ventricularRefractoryPeriod:
             return False
-        if echoed_activityThreshold != self.activityThreshold:
+        elif echoed_activityThreshold != self.activityThreshold:
             return False
-        if echoed_reactionTime != self.reactionTime:
+        elif echoed_reactionTime != self.reactionTime:
             return False
-        if echoed_responseFactor != self.responseFactor:
+        elif echoed_responseFactor != self.responseFactor:
             return False
-        if echoed_recoveryTime != self.recoveryTime:
+        elif echoed_recoveryTime != self.recoveryTime:
             return False
-        if echoed_maximumSensorRate != self.maximumSensorRate:
+        elif echoed_maximumSensorRate != self.maximumSensorRate:
             return False
-        if echoed_atrialAmplitudeUnregulated != self.atrialAmplitudeUnregulated:
+        elif echoed_atrialAmplitudeUnregulated != self.atrialAmplitudeUnregulated:
             return False
-        if echoed_atrialPulseWidth != self.atrialPulseWidth:
+        elif echoed_atrialPulseWidth != self.atrialPulseWidth:
             return False
-        if echoed_ventricularAmplitudeUnregulated != self.ventricularAmplitudeUnregulated:
+        elif echoed_ventricularAmplitudeUnregulated != self.ventricularAmplitudeUnregulated:
             return False
-        if echoed_ventricularPulseWidth != self.ventricularPulseWidth:
+        elif echoed_ventricularPulseWidth != self.ventricularPulseWidth:
             return False
-        if echoed_rateSmoothing != self.rateSmoothing:
+        elif echoed_rateSmoothing != self.rateSmoothing:
             return False
-        if echoed_atrialSensitivity != self.atrialSensitivity:
+        elif echoed_atrialSensitivity != self.atrialSensitivity:
             return False
-        if echoed_ventricularSensitivity != self.ventricularSensitivity:
+        elif echoed_ventricularSensitivity != self.ventricularSensitivity:
             return False
         return True
 
@@ -441,8 +527,8 @@ async def handler(websocket):
     try:
         connected.add(websocket)
         device_connected[websocket] = False  # Initially not connected to device
-        egm_task = asyncio.create_task(egm_simulator(websocket))
-        test_recieve = asyncio.create_task(PacemakerInputs.awaitEKGData())
+        #egm_task = asyncio.create_task(egm_simulator(websocket))
+        #test_recieve = asyncio.create_task(PacemakerInputs.awaitEKGData())
         verification_task = asyncio.create_task(PacemakerInputs.awaitEchoedParameters(websocket))
         
         async for message in websocket:
@@ -466,6 +552,7 @@ async def handler(websocket):
                                 "state": "Connected"
                             }
                             await websocket.send(json.dumps(response))
+                            PacemakerInputs.requestHandshake()
                             print("Device connected")
                         else:
                             # Connection failed - timeout or no response
@@ -493,7 +580,7 @@ async def handler(websocket):
                         "state": "Lost"
                     }
                     await websocket.send(json.dumps(response))
-                    print("Device disconnected")
+                    print("Device disconnected, Wipe DCM state")
                     
                 else:
                     # Handle parameter data or other messages
@@ -515,12 +602,12 @@ async def handler(websocket):
         print(f"Error in handler: {e}")
     finally:
         # Cancel all tasks
-        egm_task.cancel()
+        #egm_task.cancel()
         verification_task.cancel()
-        try:
-            await egm_task
-        except asyncio.CancelledError:
-            pass
+        #try:
+        #    await egm_task
+        #except asyncio.CancelledError:
+        #    pass
         try:
             await verification_task
         except asyncio.CancelledError:
