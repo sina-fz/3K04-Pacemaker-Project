@@ -78,6 +78,14 @@ export default function App() {
   }>({ status: null, message: "" });
 //////////////////////////////
 const wsRef = useRef<WebSocket | null>(null);
+const currentUserRef = useRef<string>(currentUser);
+const selectedPatientRef = useRef<Patient | null>(selectedPatient);
+
+// Keep refs in sync with state
+useEffect(() => {
+  currentUserRef.current = currentUser;
+  selectedPatientRef.current = selectedPatient;
+}, [currentUser, selectedPatient]);
 
 useEffect(() => {
   let ws: WebSocket;
@@ -107,6 +115,14 @@ useEffect(() => {
       try {
         const data = JSON.parse(rawData);
         
+        // Debug: Log current state when message received
+        if (data.type === "DEVICE_INFO") {
+          console.log("=== DEVICE_INFO DEBUG ===");
+          console.log("currentUser state:", currentUser);
+          console.log("selectedPatient state:", selectedPatient);
+          console.log("isLoggedIn:", isLoggedIn);
+        }
+        
         // Handle different message types
         if (data.type === 'ekg' || data.type === 'egm') {
           // EKG/EGM data received - update state
@@ -129,6 +145,47 @@ useEffect(() => {
             message: data.message
           });
           console.log("Parameter verification:", data.status, "-", data.message);
+        } else if (data.type === "DEVICE_INFO") {
+          // Device info received from pacemaker - update patient device info
+          console.log("DEVICE_INFO received:", data);
+          console.log("Current user (from ref):", currentUserRef.current);
+          console.log("Selected patient (from ref):", selectedPatientRef.current);
+          
+          if (selectedPatientRef.current && currentUserRef.current) {
+            const updatedDevice = {
+              ...selectedPatientRef.current.device,
+              serialNumber: data.serialNumber,
+              model: data.deviceModel,
+              lastInterrogation: new Date().toLocaleString(),
+              isConnected: true
+            };
+            
+            console.log("Updated device:", updatedDevice);
+            
+            // Update selectedPatient state
+            setSelectedPatient({
+              ...selectedPatientRef.current,
+              device: updatedDevice
+            });
+            
+            // Also persist to localStorage by updating savedUsers
+            setSavedUsers((prev) => {
+              const updated = prev.map((user) =>
+                user.username === currentUserRef.current
+                  ? { 
+                      ...user, 
+                      patientData: { 
+                        ...user.patientData, 
+                        device: updatedDevice
+                      } 
+                    }
+                  : user
+              );
+              console.log("Updated savedUsers:", updated);
+              return updated;
+            });
+          }
+          console.log("Device info updated:", data.serialNumber, data.deviceModel);
         } else {
           console.log("Message from Python:", rawData);
         }
@@ -633,6 +690,7 @@ useEffect(() => {
                 onDeleteUser={handleDeleteUser} 
                 currentUser={currentUser}
                 onNewPatient={handleNewPatient}
+                deviceSerialNumber={selectedPatient?.device?.serialNumber}
               />
             )}
             {!selectedPatient && activeTab !== "about" && (

@@ -18,10 +18,11 @@ interface AboutUtilitiesProps {
     savedUsers: User[];
     onDeleteUser: (username: string) => void;
     currentUser?: string;
-  onNewPatient: () => void;
+    onNewPatient: () => void;
+    deviceSerialNumber?: string;
 }
 
-export function AboutUtilities({ savedUsers, onDeleteUser, currentUser, onNewPatient }: AboutUtilitiesProps) {
+export function AboutUtilities({ savedUsers, onDeleteUser, currentUser, onNewPatient, deviceSerialNumber }: AboutUtilitiesProps) {
     const [currentTime, setCutrrentTime] = useState(new Date());
 
     const handleSetClock = () => {
@@ -62,7 +63,9 @@ export function AboutUtilities({ savedUsers, onDeleteUser, currentUser, onNewPat
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                 <div>
                   <p className="font-medium">DCM Serial Number</p>
-                  <p className="text-sm text-muted-foreground">Placeholder</p>
+                  <p className="text-sm text-muted-foreground">
+                    {deviceSerialNumber || "Not connected"}
+                  </p>
                 </div>
               </div>
               
