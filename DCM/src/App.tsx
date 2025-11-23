@@ -138,6 +138,39 @@ useEffect(() => {
             isConnecting: false,
           });
           console.log("Device connection state updated to:", data.state);
+          
+          // If disconnected, reset device info to "Not available"
+          if (data.state === "Lost" || data.state === "Out of Range") {
+            if (selectedPatientRef.current && currentUserRef.current) {
+              const resetDevice = {
+                ...selectedPatientRef.current.device,
+                serialNumber: "Not available",
+                model: "Not available",
+                isConnected: false
+              };
+              
+              // Update selectedPatient state
+              setSelectedPatient({
+                ...selectedPatientRef.current,
+                device: resetDevice
+              });
+              
+              // Also persist to localStorage
+              setSavedUsers((prev) => {
+                return prev.map((user) =>
+                  user.username === currentUserRef.current
+                    ? { 
+                        ...user, 
+                        patientData: { 
+                          ...user.patientData, 
+                          device: resetDevice
+                        } 
+                      }
+                    : user
+                );
+              });
+            }
+          }
         } else if (data.type === "PARAMETER_VERIFICATION") {
           // Parameter verification status from Python
           setVerificationStatus({
@@ -224,7 +257,21 @@ useEffect(() => {
     // Use a consistent key name: 'dcm_users'
     const saved = localStorage.getItem("dcm_users");
     if (saved) {
-      return JSON.parse(saved);
+      const users = JSON.parse(saved);
+      // Reset device info to "Not available" for all users on load
+      return users.map((user: User) => ({
+        ...user,
+        patientData: {
+          ...user.patientData,
+          device: {
+            ...user.patientData.device,
+            model: "Not available",
+            serialNumber: "Not available",
+            lastInterrogation: user.patientData.device.lastInterrogation,
+            isConnected: false,
+          }
+        }
+      }));
     }
     return [
       {
@@ -240,10 +287,10 @@ useEffect(() => {
           dateOfBirth: "2005-06-24",
           patientId: "007",
           device: {
-            model: "PaceMaker-3000",
-            serialNumber: "MDG387292AJS10",
-            lastInterrogation: "2025-10-25 5:26",
-            isConnected: true,
+            model: "Not available",
+            serialNumber: "Not available",
+            lastInterrogation: "Never",
+            isConnected: false,
           },
           // Default Parameter Values for this patient
           parameters: {
@@ -311,9 +358,9 @@ useEffect(() => {
         dateOfBirth: "",
         patientId: `P00${String(accountNumber).padStart(4, "0")}`,
         device: {
-          model: "Placeholder",
-          serialNumber: "Placeholder",
-          lastInterrogation: "Placeholder",
+          model: "Not available",
+          serialNumber: "Not available",
+          lastInterrogation: "Never",
           isConnected: false,
         },
         parameters: {
@@ -636,7 +683,7 @@ useEffect(() => {
                                 <p className="text-sm text-muted-foreground mb-1">
                                   Serial Number
                                 </p>
-                                <p className="font-medium font-mono text-sm text-[16px] font-bold">
+                                <p className="font-medium">
                                   {selectedPatient.device.serialNumber}
                                 </p>
                               </div>
@@ -672,6 +719,7 @@ useEffect(() => {
                   onParameterSaved={handleParametersSaved}
                   onSendToPacemaker={handleSendToPacemaker}
                   verificationStatus={verificationStatus}
+                  isConnected={telemetryState.connectionState === "Connected"}
                 />
               </div>
             )}

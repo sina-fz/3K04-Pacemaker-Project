@@ -172,6 +172,13 @@ class PacemakerInputs_template:
             print("Parameters sent to pacemaker")
             
             # ====== FOR TESTING WILL NEED TO REMOVE LATER ======
+            import time
+            time.sleep(0.05)  # Small delay to ensure loopback is ready
+            
+            if self.ser.in_waiting >= 99:
+                self.ser.read(99)  # Discard the echoed parameter packet
+                print("Consumed echoed parameter packet (loopback mode)")
+            
             # Create echo packet with header 0x16 0x56
             echo_packet = bytearray()
             echo_packet.append(0x16)  # SYNC byte 1

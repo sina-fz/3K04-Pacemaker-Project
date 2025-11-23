@@ -39,6 +39,7 @@ interface ParametersTableProps {
     status: "pending" | "verified" | "failed" | null;
     message: string;
   };
+  isConnected?: boolean;
 }
 
 // Available modes for pacemaker
@@ -81,8 +82,9 @@ export function ParametersTable({
   onParameterSaved,
   onSendToPacemaker,
   verificationStatus,
+  isConnected = false,
 }: ParametersTableProps) {
-  const [selectedMode, setSelectedMode] = useState("DDD"); // current selected pacing mode
+  const [selectedMode, setSelectedMode] = useState("VOO"); // current selected pacing mode
   const [hasChanges, setHasChanges] = useState(false); // true when any parameters have been changed
   const [modeUnavailableAlert, setModeUnavailableAlert] = useState(false); // alert for unavailable mode
 
@@ -1073,6 +1075,7 @@ export function ParametersTable({
     !hasChanges &&
     invalidCount === 0 &&
     isModeAvailable &&
+    isConnected &&
     parameters.every((p) => p.isValid !== false);
 
   const getStepValue = (param: Parameter): number | undefined => {
@@ -1625,7 +1628,7 @@ export function ParametersTable({
                   disabled={!canSave}
                   className="w-full h-11"
                   variant="outline"
-                  title={!isModeAvailable ? "Cannot save - mode not available" : !canSave ? "No changes to save or validation errors present" : ""}
+                  title={!isModeAvailable ? "Cannot save: mode not available" : !canSave ? "No changes to save or validation errors present" : ""}
                 >
                   Save Changes
                 </Button>
@@ -1634,7 +1637,15 @@ export function ParametersTable({
                   onClick={handleSendToPacemaker}
                   disabled={!canSend}
                   className="w-full h-11 bg-gray-900 hover:bg-gray-800"
-                  title={!isModeAvailable ? "Cannot send - mode not available" : !canSend ? "Save changes first or fix validation errors" : ""}
+                  title={
+                    !isConnected 
+                      ? "Cannot send: device not connected" 
+                      : !isModeAvailable 
+                        ? "Cannot send: mode not available" 
+                        : !canSend 
+                          ? "Save changes first or fix validation errors" 
+                          : ""
+                  }
                 >
                   Send to Pacemaker
                 </Button>
