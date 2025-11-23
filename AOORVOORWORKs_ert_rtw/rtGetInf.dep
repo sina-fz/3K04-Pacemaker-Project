@@ -1,0 +1,11 @@
+rtGetInf.o: \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtGetInf.c \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtGetInf.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rt_nonfinite.h
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtGetInf.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rt_nonfinite.h:

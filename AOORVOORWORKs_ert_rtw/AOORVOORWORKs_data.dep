@@ -1,0 +1,47 @@
+AOORVOORWORKs_data.o: \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs_data.c \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/zero_crossing_types.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_digitalIO.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SVD.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_AnalogIn.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SCI.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_I2C.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_PWM.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs_types.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/multiword_types.h \
+ C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SVD.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rt_nonfinite.h \
+ C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs_private.h
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/zero_crossing_types.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_digitalIO.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SVD.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rtwtypes.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_AnalogIn.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SCI.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_I2C.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_PWM.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs_types.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/multiword_types.h:
+
+C:/ProgramData/MATLAB/SupportPackages/R2020a/toolbox/target/supportpackages/freedomk64f/include/MW_SVD.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/rt_nonfinite.h:
+
+C:/simulink/3K04-Pacemaker-Project/AOORVOORWORKs_ert_rtw/AOORVOORWORKs_private.h:
