@@ -8,7 +8,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ScrollArea } from "./ui/scroll-area";
-import { FileText, Printer, Download, Eye, Calendar, Building, User, Edit, RefreshCw } from "lucide-react";
+import { FileText, Printer, Download, Eye, Calendar, Building, User, Edit, RefreshCw, AlertCircle } from "lucide-react";
 
 interface Report {
     id: string;
@@ -39,7 +39,7 @@ const reportTypeColors: Record<Report['type'], string> = {
     // trending: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
 };
 
-export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
+export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?: any; deviceInfo?: { serialNumber?: string; model?: string } }) {
     const [selectedReports, setSelectedReports] = useState<string[]>([]);
     const [previewReport, setPreviewReport] = useState<Report | null>(null);
     const [isEditingHeader, setIsEditingHeader] = useState(false);
@@ -52,6 +52,7 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
     const [patientHistory, setPatientHistory] = useState<any[]>([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
+    const [temporaryParams, setTemporaryParams] = useState<any>(null);
 
     const toggleReportSelection = (reportId: string) => {
         setSelectedReports(prev => prev.includes(reportId) ? prev.filter(id => id !== reportId) : [...prev, reportId]);
@@ -128,10 +129,11 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                 institution: headerInfo.institution,
                 instution: headerInfo.institution,
                 date: timestamp || new Date().toISOString(),
-                deviceInfo: '',
+                deviceInfo: deviceInfo,
                 dcmInfo: headerInfo.dcmInfo,
                 parameters: values,
                 patientId: selectedPatient?.id,
+                temporaryParams: temporaryParams,
             });
         }).join('\n\n---\n\n');
         win.document.write(`<pre>${content.replace(/</g, '&lt;')}</pre>`);
@@ -148,10 +150,11 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                 institution: headerInfo.institution,
                 instution: headerInfo.institution,
                 date: timestamp || new Date().toISOString(),
-                deviceInfo: '',
+                deviceInfo: deviceInfo,
                 dcmInfo: headerInfo.dcmInfo,
                 parameters: values,
                 patientId: selectedPatient?.id,
+                temporaryParams: temporaryParams,
             });
         });
     };
@@ -160,6 +163,44 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
     useEffect(() => {
         const id = selectedPatient?.id;
         if (id) loadPatientHistory(id); else setPatientHistory([]);
+    }, [selectedPatient]);
+
+    // Listen for temporary parameter changes from sessionStorage
+    useEffect(() => {
+        const checkTemporaryParams = () => {
+            try {
+                const tempParams = sessionStorage.getItem('temporaryParameters');
+                const tempParamsMeta = sessionStorage.getItem('temporaryParametersMeta');
+                
+                if (tempParams && tempParamsMeta) {
+                    const params = JSON.parse(tempParams);
+                    const meta = JSON.parse(tempParamsMeta);
+                    
+                    // Only show if they belong to current patient
+                    if (meta.patientId === selectedPatient?.id) {
+                        setTemporaryParams({
+                            params,
+                            meta,
+                            modifiedAt: meta.modifiedAt,
+                        });
+                    } else {
+                        setTemporaryParams(null);
+                    }
+                } else {
+                    setTemporaryParams(null);
+                }
+            } catch (e) {
+                console.error('Error loading temporary parameters:', e);
+                setTemporaryParams(null);
+            }
+        };
+
+        checkTemporaryParams();
+        
+        // Check periodically for updates
+        const interval = setInterval(checkTemporaryParams, 1000);
+        
+        return () => clearInterval(interval);
     }, [selectedPatient]);
 
     const latestTimestamp = getLatestForPatient().timestamp;
@@ -261,10 +302,11 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                                                     institution: headerInfo.institution,
                                                                     instution: headerInfo.institution,
                                                                     date: latestTimestamp || new Date().toISOString(),
-                                                                    deviceInfo: '',
+                                                                    deviceInfo: deviceInfo,
                                                                     dcmInfo: headerInfo.dcmInfo,
                                                                     parameters: getLatestForPatient().values,
                                                                     patientId: selectedPatient?.id,
+                                                                    temporaryParams: temporaryParams,
                                                                 })}
                                                             </pre>
                                                         </ScrollArea>
@@ -281,10 +323,11 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                                                 institution: headerInfo.institution,
                                                                 instution: headerInfo.institution,
                                                                 date: latestTimestamp || new Date().toISOString(),
-                                                                deviceInfo: '',
+                                                                deviceInfo: deviceInfo,
                                                                 dcmInfo: headerInfo.dcmInfo,
                                                                 parameters: getLatestForPatient().values,
                                                                 patientId: selectedPatient?.id,
+                                                                temporaryParams: temporaryParams,
                                                             })}>
                                                                 <Download className="h-4 w-4" />
                                                                 Export PDF
@@ -299,10 +342,11 @@ export function ReportsPanel({ selectedPatient }: { selectedPatient?: any }) {
                                                         institution: headerInfo.institution,
                                                         instution: headerInfo.institution,
                                                         date: latestTimestamp || new Date().toISOString(),
-                                                        deviceInfo: '',
+                                                        deviceInfo: deviceInfo,
                                                         dcmInfo: headerInfo.dcmInfo,
                                                         parameters: getLatestForPatient().values,
                                                         patientId: selectedPatient?.id,
+                                                        temporaryParams: temporaryParams,
                                                     })}
                                                     disabled={!report.isAvailable}
                                                 >
@@ -435,29 +479,38 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
         
         // bradycardia parameters report
         case 'bradycardia': case 'temporary': {
-            // Try to get parameters from headerInfo first, then fall back to persisted 'pacemakerParameters' for the given patient, then other common keys.
-            let params: any = headerInfo.parameters ?? headerInfo.savedParameters;
-            // Fallback 1: canonical app storage (with patient scoping)
-            if (!params && headerInfo.patientId) {
-                try {
-                    const rawPP = localStorage.getItem('pacemakerParameters');
-                    if (rawPP) {
-                        const parsed = JSON.parse(rawPP || '{}');
-                        const hist = parsed[headerInfo.patientId] || [];
-                        if (hist.length) params = hist[hist.length - 1].values;
+            // For temporary report, use temporary parameters if available
+            let params: any;
+            let isTempReport = report.id === 'temporary';
+            
+            if (isTempReport && headerInfo.temporaryParams) {
+                params = headerInfo.temporaryParams.params;
+            } else {
+                // Try to get parameters from headerInfo first, then fall back to persisted 'pacemakerParameters' for the given patient
+                params = headerInfo.parameters ?? headerInfo.savedParameters;
+                
+                // Fallback 1: canonical app storage (with patient scoping)
+                if (!params && headerInfo.patientId) {
+                    try {
+                        const rawPP = localStorage.getItem('pacemakerParameters');
+                        if (rawPP) {
+                            const parsed = JSON.parse(rawPP || '{}');
+                            const hist = parsed[headerInfo.patientId] || [];
+                            if (hist.length) params = hist[hist.length - 1].values;
+                        }
+                    } catch {}
+                }
+                // Fallback 2: legacy/common keys
+                if (!params) {
+                    try {
+                        const raw =
+                            localStorage.getItem('dcm_parameters') ??
+                            localStorage.getItem('savedParameters') ??
+                            localStorage.getItem('parameters');
+                        if (raw) params = JSON.parse(raw);
+                    } catch {
+                        params = undefined;
                     }
-                } catch {}
-            }
-            // Fallback 2: legacy/common keys
-            if (!params) {
-                try {
-                    const raw =
-                        localStorage.getItem('dcm_parameters') ??
-                        localStorage.getItem('savedParameters') ??
-                        localStorage.getItem('parameters');
-                    if (raw) params = JSON.parse(raw);
-                } catch {
-                    params = undefined;
                 }
             }
 
@@ -550,8 +603,27 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
                         }
 
             const institution = headerInfo.institution ?? headerInfo.instution ?? '';
+            
+            let reportHeader = '';
+            if (isTempReport) {
+                const tempMeta = headerInfo.temporaryParams?.meta;
+                const lastModified = tempMeta?.modifiedAt ? new Date(tempMeta.modifiedAt).toLocaleString() : 'Unknown';
+                
+                reportHeader = `
+    DEVICE CONTROLLER-MONITOR REPORT
+    ${report.name.toUpperCase()}
 
-            return `
+    Institution: ${institution}
+    Date/Time: ${headerInfo.date}
+    Device Info: ${headerInfo.deviceInfo}
+    DCM Info: ${headerInfo.dcmInfo}
+    Last Modified: ${lastModified}
+
+    ${params ? 'Temporary parameters (not yet saved):' : 'No temporary parameters - all changes have been saved'}
+    ${paramsText}
+                `.trim();
+            } else {
+                reportHeader = `
     DEVICE CONTROLLER-MONITOR REPORT
     ${report.name.toUpperCase()}
 
@@ -562,24 +634,32 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
 
     Saved parameters:
     ${paramsText}
-            `.trim();
+                `.trim();
+            }
+
+            return reportHeader;
         }
 
         // implant data report
-        case 'implant':
+        case 'implant': {
+            const deviceModel = headerInfo.deviceInfo?.model || 'Not available';
+            const serialNumber = headerInfo.deviceInfo?.serialNumber || 'Not available';
+            
             return `
 IMPLANT DATA REPORT
 ===================
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-Device Info: ${headerInfo.deviceInfo}
 DCM Info: ${headerInfo.dcmInfo}
 
-Device Model:
-Serial Number:
-Implant Name:
+Device Information:
+-------------------
+Device Model: ${deviceModel}
+Serial Number: ${serialNumber}
+Patient ID: ${headerInfo.patientId || 'N/A'}
             `.trim();
+        }
 
         // threshold data report
         case 'threshold':
@@ -618,15 +698,75 @@ DCM Info: ${headerInfo.dcmInfo}
             `.trim();
 
         // session net change report
-        case 'session':
-            return `
+        case 'session': {
+            // Get first and last parameter sets from patient history
+            const id = headerInfo.patientId;
+            let firstParams: any = null;
+            let lastParams: any = null;
+            let firstTimestamp = '';
+            let lastTimestamp = '';
+            
+            try {
+                const raw = localStorage.getItem('pacemakerParameters');
+                if (raw && id) {
+                    const parsed = JSON.parse(raw);
+                    const hist = parsed[id] || [];
+                    
+                    if (hist.length > 0) {
+                        firstParams = hist[0].values;
+                        firstTimestamp = hist[0].timestamp;
+                        lastParams = hist[hist.length - 1].values;
+                        lastTimestamp = hist[hist.length - 1].timestamp;
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading session history', e);
+            }
+            
+            if (!firstParams || !lastParams) {
+                return `
 SESSION NET CHANGE REPORT
+=========================
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-Device Info: ${headerInfo.deviceInfo}
 DCM Info: ${headerInfo.dcmInfo}
+
+No session history available for this patient.
+                `.trim();
+            }
+            
+            // Calculate changes
+            const changes: string[] = [];
+            const allKeys = new Set([...Object.keys(firstParams), ...Object.keys(lastParams)]);
+            
+            allKeys.forEach(key => {
+                const firstVal = firstParams[key];
+                const lastVal = lastParams[key];
+                
+                if (firstVal !== lastVal) {
+                    changes.push(`${key}: ${firstVal} to ${lastVal}`);
+                }
+            });
+            
+            return `
+SESSION NET CHANGE REPORT
+=========================
+
+Institution: ${headerInfo.institution}
+DCM Info: ${headerInfo.dcmInfo}
+Patient ID: ${id || 'N/A'}
+
+Session Start: ${firstTimestamp}
+Session End: ${lastTimestamp}
+
+Parameter Changes:
+------------------
+${changes.length > 0 ? changes.join('\n') : 'No parameter changes detected'}
+
+Total Parameters Modified: ${changes.length}
             `.trim();
+        }
 
         // final report
         case 'final':

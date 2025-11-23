@@ -683,7 +683,15 @@ useEffect(() => {
               />
             )}
 
-            {activeTab === "reports" && selectedPatient && <ReportsPanel selectedPatient={selectedPatient} />}
+            {activeTab === "reports" && selectedPatient && (
+              <ReportsPanel 
+                selectedPatient={selectedPatient}
+                deviceInfo={{
+                  serialNumber: selectedPatient?.device?.serialNumber,
+                  model: selectedPatient?.device?.model,
+                }}
+              />
+            )}
             {activeTab === "about" && (
               <AboutUtilities 
                 savedUsers={savedUsers} 

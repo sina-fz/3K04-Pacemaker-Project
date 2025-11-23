@@ -748,7 +748,7 @@ export function ParametersTable({
       const currentLowerRate = prev.find((p) => p.id === "lowerRateLimit")?.value;
       const currentUpperRate = prev.find((p) => p.id === "upperRateLimit")?.value;
 
-      return prev.map((param) => {
+      const updatedParams = prev.map((param) => {
         if (param.id === id) {
           let numValue = value;
           let isValid = true;
@@ -837,6 +837,30 @@ export function ParametersTable({
         
         return param;
       });
+
+      // Save temporary parameters to sessionStorage for reports
+      if (selectedPatient?.id) {
+        try {
+          const parameterValues = updatedParams.reduce((acc, param) => {
+            acc[param.id] = param.value;
+            return acc;
+          }, {} as any);
+
+          const dirtyCount = updatedParams.filter(p => p.isDirty).length;
+
+          sessionStorage.setItem('temporaryParameters', JSON.stringify(parameterValues));
+          sessionStorage.setItem('temporaryParametersMeta', JSON.stringify({
+            patientId: selectedPatient.id,
+            modifiedAt: new Date().toISOString(),
+            modifiedCount: dirtyCount,
+            mode: selectedMode,
+          }));
+        } catch (error) {
+          console.error('Error saving temporary parameters:', error);
+        }
+      }
+
+      return updatedParams;
     });
     setHasChanges(true);
   };
@@ -969,6 +993,14 @@ export function ParametersTable({
     // Save to localStorage with patient ID
     if (selectedPatient?.id) {
       saveToLocalStorage(selectedPatient.id, parameterValues);
+      
+      // Clear temporary parameters since they're now saved
+      try {
+        sessionStorage.removeItem('temporaryParameters');
+        sessionStorage.removeItem('temporaryParametersMeta');
+      } catch (error) {
+        console.error('Error clearing temporary parameters:', error);
+      }
     }
 
     onParameterSaved(parameterValues);
