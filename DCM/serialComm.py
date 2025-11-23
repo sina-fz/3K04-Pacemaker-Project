@@ -138,15 +138,9 @@ class PacemakerInputs_template:
     def sendDeviceInfoRequest(self):
         if not self.ser.is_open:
             try:
-<<<<<<< HEAD
                 # For loopback connections, we need to recreate the serial object
                 #self.ser = serial.serial_for_url("loop://", baudrate=self.baudrate, timeout=1)
                 self.ser.open()
-=======
-                # For loopback connections, recreate the serial object
-                self.ser = serial.serial_for_url("loop://", baudrate=self.baudrate, timeout=1)
-                # self.ser.open()
->>>>>>> c01264761a4ea027d910bdc377c7939506acd920
                 print("Opened serial comm port for device info request")
             except serial.SerialException as e:
                 print(f"Serial failure on open: {e}")
