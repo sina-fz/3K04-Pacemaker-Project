@@ -60,12 +60,8 @@ interface ChannelData {
 }
 
 const markerColors = {
-  AS: '#22c55e', // Atrial Sensed - green
-  VS: '#0ea5e9', // Ventricular Sensed - blue  
-  VP: '#8b5cf6', // Ventricular Paced - purple
-  AP: '#f59e0b', // Atrial Paced - amber
-  AR: '#ef4444', // Atrial Refractory - red
-  VR: '#dc2626'  // Ventricular Refractory - red
+  Atrial: '#22c55e', // Atrial - green
+  Ventricular: '#0ea5e9', // Ventricular - blue
 };
 
 interface EKGViewerProps {
@@ -81,13 +77,11 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
   const [timeScale, setTimeScale] = useState([1]);
   const [channelGains, setChannelGains] = useState({
     atrial: 1.0,
-    ventricular: 1.0,
-    ecg: 1.0
+    ventricular: 1.0
   });
   const [gainInputs, setGainInputs] = useState({
     atrial: '1.0',
-    ventricular: '1.0',
-    ecg: '1.0'
+    ventricular: '1.0'
   });
   const [markers] = useState<EGMMarker[]>([
     { time: 100, type: 'AS', timeSinceLast: 850 },
@@ -235,7 +229,7 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
         ctx.fillText(channel, 10, yOffset - traceHeight/2 + 15);
         
         // Set color based on channel
-        ctx.strokeStyle = channel === 'Atrial' ? '#22c55e' : channel === 'Ventricular' ? '#0ea5e9' : '#f59e0b';
+        ctx.strokeStyle = channel === 'Atrial' ? '#22c55e' : '#0ea5e9';
         ctx.lineWidth = 2;
         ctx.beginPath();
         
@@ -351,7 +345,7 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
               <Label className="font-medium">Channel Selection</Label>
             </div>
             <div className="space-y-3">
-              {['Atrial', 'Ventricular', 'ECG'].map(channel => (
+              {['Atrial', 'Ventricular'].map(channel => (
                 <div key={channel} className="flex items-center justify-between">
                   <Badge
                     variant={selectedChannels.includes(channel) ? "default" : "outline"}
@@ -444,19 +438,11 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
         {/* Marker Legend */}
         <div className="p-3 bg-muted/50 rounded-lg">
           <h4 className="font-medium mb-2">Event Markers</h4>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             {Object.entries(markerColors).map(([type, color]) => (
               <div key={type} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
                 <span className="font-mono">{type}</span>
-                <span className="text-muted-foreground">
-                  {type === 'AS' ? 'Atrial Sensed' :
-                   type === 'VS' ? 'Ventricular Sensed' :
-                   type === 'VP' ? 'Ventricular Paced' :
-                   type === 'AP' ? 'Atrial Paced' :
-                   type === 'AR' ? 'Atrial Refractory' :
-                   'Ventricular Refractory'}
-                </span>
               </div>
             ))}
           </div>
