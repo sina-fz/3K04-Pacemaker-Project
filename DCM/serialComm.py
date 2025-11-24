@@ -4,6 +4,7 @@ import json
 import struct
 import serial
 import math # for ekg testing 
+import time
 
 connected = set()
 device_connected = {}  # Track connection state per websocket
@@ -16,7 +17,14 @@ class PacemakerInputs_template:
         self.baudrate = 115200
         self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
         #self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1) # for testing
-        
+
+        self.write_busy = False
+
+        self.ready_for_EKG = False
+
+        self.serial_lock = asyncio.Lock()
+        self.ekg_writer_task = None
+
         self.waiting_for_device_info = False  # Flag to prevent other tasks from consuming device info response
         self.serialNum = 0
         self.deviceID = 0
@@ -52,6 +60,10 @@ class PacemakerInputs_template:
         self.responseFactor = 0
         self.recoveryTime = 0
 
+        self.atrDetect = 0
+        self.ventDetect = 0
+        self.timestamp = 0
+
         self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220, "DDDR": 3330}
 
     def mapData(self,message):
@@ -85,6 +97,8 @@ class PacemakerInputs_template:
             except serial.SerialException as e:
                 print(f"Serial failure on reopen: {e}")
         try:
+            self.write_busy = True
+
             # Start of packet 
             packet = bytearray()
             packet.append(0x16)  # SYNC byte 1
@@ -127,6 +141,8 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
+            self.write_busy = False
+
             print("Parameters sent to pacemaker")
 
         except serial.SerialException as e:
@@ -155,6 +171,7 @@ class PacemakerInputs_template:
             pass
             
         try:
+            self.write_busy = True
             # Set flag to prevent other tasks from consuming the response
             self.waiting_for_device_info = True
             
@@ -167,6 +184,7 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
+            self.write_busy = False
             print("Handshake Requested")
 
             return True
@@ -241,67 +259,62 @@ class PacemakerInputs_template:
 
             await asyncio.sleep(0.01)
 
-
-    # send request to start/stop EKG data streaming
-    def sendEKGRequest(self, start=True):
-        if not self.ser.is_open:
-            try:
-                self.ser.open()
-                print("Opened serial comm port for EKG request")
-            except serial.SerialException as e:
-                print(f"Serial failure on open: {e}")
-                return False
-        
+    async def ekg_request_loop(self):
+        """Send EKG request packets every 10 ms until cancelled."""
         try:
-            # start of packet (request ekg data streaming for start and stop)
-            packet = bytearray(99)
-            packet[0] = 0x16  # SYNC byte 1
-            packet[1] = 0x36  # EKG request function code byte 2
-            packet[2] = 1 if start else 0 # 1 is start, 0 is stop streaming
-        
-            self.ser.write(packet)
-            self.ser.flush()
-            return True
-            
-        except serial.SerialException as e:
-            print(f"Serial error sending EKG request: {e}")
-            self.close()
-            return False
+            while True:
+                await self.sendEKGRequest(start=True)
+                await asyncio.sleep(0.010)
+        except asyncio.CancelledError:
+            await self.sendEKGRequest(start=False)
+            print("EKG request loop stopped")
+
+
+    async def sendEKGRequest(self, start=True):
+        async with self.serial_lock:
+            try:
+                packet = bytearray(99)
+                packet[0] = 0x16
+                packet[1] = 0x36
+                packet[2] = 1 if start else 0
+
+                self.ser.write(packet)
+                self.ser.flush()
+                self.ready_for_EKG = True
+                return True
+
+            except serial.SerialException:
+                self.ready_for_EKG = False
+                return False
 
     # waits for EKG data from pacemaker via serial
     async def awaitEKGData(self, websocket):
-        # print("=== EKG LOOP STARTED ===") #remove this later
-        # loop_count = 0 #remove this later
         while True: # infinte loop while streaming is active
-            # loop_count += 1
-            # print(f"EKG Loop iteration: {loop_count}")
-            
             if not self.ser.is_open:
                 print("=== EKG LOOP ENDED: Serial port closed ===")
                 return
             try:
                 if self.ser.in_waiting >= 99:
-                    await asyncio.sleep(0.01)
-                    continue
-                if self.ser.in_waiting >= 18:
-                    packet = self.ser.read(18)
-
+                    packet = self.ser.read(99)
                     # Check header bytes for EKG data
                     if not(packet[0] == 0x16 and packet[1] == 0x20):
-                        await asyncio.sleep(0.001)
+                        await asyncio.sleep(0.0001)
                         continue
                 
                     # Extract packet
-                    # atrial_val, ventricular_val, timestamp = struct.unpack
+
+                    self.atrDetect = struct.unpack('<f', packet[2:6])[0]
+                    self.ventDetect  = struct.unpack('<f', packet[6:10])[0]
+                    self.timestamp = int(time.time()*1000)
                     
                     # Send EKG data to frontend
                     ekg_data = {
                         "type": "ekg",
-                        "Atrial": [{"x": timestamp, "y": atrial_val}],
-                        "Ventricular": [{"x": timestamp, "y": ventricular_val}]
+                        "Atrial": [{"x": self.timestamp, "y": self.atrDetect}],
+                        "Ventricular": [{"x": self.timestamp, "y": self.ventDetect}]
                     }
                     await websocket.send(json.dumps(ekg_data))
-                    print(f"EKG Data: Atrial={atrial_val:.2f}, Ventricular={ventricular_val:.2f}, Time={timestamp:.2f}")
+                    print(f"EKG Data: Atrial={self.atrDetect:.2f}, Ventricular={self.ventDetect:.2f}, Time={self.timestamp:.2f}")
                     
             except serial.SerialException as e:
                 print(f"Serial error: {e}")
@@ -456,44 +469,6 @@ class ECGData_template:
         self.VentPulse = 0
         self.Time = 0
 
-async def egm_simulator(websocket):
-    t = 0.0
-    dt = 0.004  # 4ms between points = 250 Hz sampling rate
-    window_seconds = 10.0  # Keep last 10 seconds of data
-    max_points = int(window_seconds / dt)
-    egm_data = {  # Fixed: emg -> egm
-        "type": "ekg",  # Changed to "ekg" to match frontend expectations
-        "Atrial": [], 
-        "Ventricular": [],
-        "ECG": []
-    }
-    try:
-        while True: 
-            t += dt
-            atrial_val = 5.0 * math.sin(2 * math.pi * 1.0 * t)
-            ventricular_val = 12.0 * math.sin(2 * math.pi * 1.0 * t + 0.6)
-            ecg_val = atrial_val * 0.5 + ventricular_val * 0.8
-            egm_data["Atrial"].append({"x": t, "y": atrial_val})
-            egm_data["Ventricular"].append({"x": t, "y": ventricular_val})
-            egm_data["ECG"].append({"x": t, "y": ecg_val})
-            for key in ["Atrial", "Ventricular", "ECG"]:
-                if len(egm_data[key]) > max_points:
-                    egm_data[key].pop(0)
-            # send data to frontend
-            await websocket.send(json.dumps(egm_data))
-            # sample interval
-            await asyncio.sleep(dt)
-
-    except asyncio.CancelledError:
-        # Task was cancelled; exit gracefully
-        pass
-    except websockets.exceptions.ConnectionClosedOK:
-        # Client disconnected normally; exit gracefully
-        pass
-    except websockets.exceptions.ConnectionClosedError as e:
-        # Client disconnected unexpectedly; log if needed
-        print(f"Websocket disconnected: {e}")
-        pass
 
 PacemakerInputs = PacemakerInputs_template()
 ECGData = ECGData_template()
@@ -562,59 +537,41 @@ async def handler(websocket):
                     print("Device disconnected, Wipe DCM state")
                 
                 elif msg_type == "EKG_START_REQUEST":
-                    # Send EKG start request to pacemaker
-                    request_sent = PacemakerInputs.sendEKGRequest(start=True)
-                    
-                    if request_sent:
-                        # Start the EKG data receiving task
+                    if PacemakerInputs.ekg_writer_task is None or PacemakerInputs.ekg_writer_task.done():
+                        PacemakerInputs.ekg_writer_task = asyncio.create_task(PacemakerInputs.ekg_request_loop())
+
+                        # Start reading data too
                         if ekg_task is None or ekg_task.done():
                             ekg_task = asyncio.create_task(PacemakerInputs.awaitEKGData(websocket))
-                            print("EKG streaming task started")
-                        
-                        response = {
+
+                        # Respond to frontend
+                        await websocket.send(json.dumps({
                             "type": "EKG_STATUS",
                             "streaming": True,
                             "message": "EKG streaming started"
-                        }
-                        await websocket.send(json.dumps(response))
-                        print("EKG streaming started")
-                    else:
-                        response = {
-                            "type": "EKG_STATUS",
-                            "streaming": False,
-                            "message": "Failed to start EKG streaming"
-                        }
-                        await websocket.send(json.dumps(response))
-                        print("Failed to start EKG streaming")
-                
-                elif msg_type == "EKG_STOP_REQUEST":
-                    # Send EKG stop request to pacemaker
-                    request_sent = PacemakerInputs.sendEKGRequest(start=False)
+                        }))
 
-                    if ekg_task and not ekg_task.done():
+                elif msg_type == "EKG_STOP_REQUEST":
+                    if PacemakerInputs.ekg_writer_task:
+                        PacemakerInputs.ekg_writer_task.cancel()
+                        try:
+                            await PacemakerInputs.ekg_writer_task
+                        except asyncio.CancelledError:
+                            pass
+                        PacemakerInputs.ekg_writer_task = None
+
+                    if ekg_task:
                         ekg_task.cancel()
                         try:
                             await ekg_task
                         except asyncio.CancelledError:
                             pass
-                        print("EKG streaming task cancelled")
-                    
-                    if request_sent:
-                        response = {
-                            "type": "EKG_STATUS",
-                            "streaming": False,
-                            "message": "EKG streaming stopped"
-                        }
-                        await websocket.send(json.dumps(response))
-                        print("EKG streaming stopped")
-                    else:
-                        response = {
-                            "type": "EKG_STATUS",
-                            "streaming": False,
-                            "message": "Failed to stop EKG streaming"
-                        }
-                        await websocket.send(json.dumps(response))
-                        print("Failed to stop EKG streaming")
+
+                    await websocket.send(json.dumps({
+                        "type": "EKG_STATUS",
+                        "streaming": False,
+                        "message": "EKG streaming stopped"
+                    }))
                     
                 else:
                     # Handle parameter data or other messages
