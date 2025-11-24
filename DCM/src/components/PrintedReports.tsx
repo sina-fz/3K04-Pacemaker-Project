@@ -39,10 +39,15 @@ const reportTypeColors: Record<Report['type'], string> = {
     // trending: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
 };
 
-export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?: any; deviceInfo?: { serialNumber?: string; model?: string } }) {
+export function ReportsPanel({ selectedPatient, deviceInfo, ekgData }: { 
+    selectedPatient?: any; 
+    deviceInfo?: { serialNumber?: string; model?: string };
+    ekgData?: { Atrial?: Array<{x: number, y: number}>, Ventricular?: Array<{x: number, y: number}> };
+}) {
     const [selectedReports, setSelectedReports] = useState<string[]>([]);
     const [previewReport, setPreviewReport] = useState<Report | null>(null);
     const [isEditingHeader, setIsEditingHeader] = useState(false);
+    const [capturedEkgData, setCapturedEkgData] = useState<any[]>([]);
     const [headerInfo, setHeaderInfo] = useState({
         institution: 'McMaster University',
         group: '3K04 Group 3',
@@ -53,6 +58,21 @@ export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
     const [temporaryParams, setTemporaryParams] = useState<any>(null);
+
+    // Capture first 30 EKG data points when ekgData changes
+    useEffect(() => {
+        if (ekgData && (ekgData.Atrial || ekgData.Ventricular)) {
+            const atrialPoints = ekgData.Atrial?.slice(0, 30) || [];
+            const ventricularPoints = ekgData.Ventricular?.slice(0, 30) || [];
+            
+            if (atrialPoints.length > 0 || ventricularPoints.length > 0) {
+                setCapturedEkgData([
+                    { channel: 'Atrial', points: atrialPoints },
+                    { channel: 'Ventricular', points: ventricularPoints }
+                ]);
+            }
+        }
+    }, [ekgData]);
 
     const toggleReportSelection = (reportId: string) => {
         setSelectedReports(prev => prev.includes(reportId) ? prev.filter(id => id !== reportId) : [...prev, reportId]);
@@ -134,6 +154,7 @@ export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?
                 parameters: values,
                 patientId: selectedPatient?.id,
                 temporaryParams: temporaryParams,
+                ekgData: capturedEkgData,
             });
         }).join('\n\n---\n\n');
         win.document.write(`<pre>${content.replace(/</g, '&lt;')}</pre>`);
@@ -307,6 +328,7 @@ export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?
                                                                     parameters: getLatestForPatient().values,
                                                                     patientId: selectedPatient?.id,
                                                                     temporaryParams: temporaryParams,
+                                                                    ekgData: capturedEkgData,
                                                                 })}
                                                             </pre>
                                                         </ScrollArea>
@@ -328,6 +350,7 @@ export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?
                                                                 parameters: getLatestForPatient().values,
                                                                 patientId: selectedPatient?.id,
                                                                 temporaryParams: temporaryParams,
+                                                                ekgData: capturedEkgData,
                                                             })}>
                                                                 <Download className="h-4 w-4" />
                                                                 Export PDF
@@ -347,6 +370,7 @@ export function ReportsPanel({ selectedPatient, deviceInfo }: { selectedPatient?
                                                         parameters: getLatestForPatient().values,
                                                         patientId: selectedPatient?.id,
                                                         temporaryParams: temporaryParams,
+                                                        ekgData: capturedEkgData,
                                                     })}
                                                     disabled={!report.isAvailable}
                                                 >
@@ -662,28 +686,66 @@ Patient ID: ${headerInfo.patientId || 'N/A'}
         }
 
         // threshold data report
-        case 'threshold':
+        case 'threshold': {
+            let thresholdText = '';
+            if (headerInfo.ekgData && headerInfo.ekgData.length > 0) {
+                thresholdText = headerInfo.ekgData.map((channel: any) => {
+                    if (!channel.points || channel.points.length === 0) {
+                        return `\n${channel.channel} Channel: No data available`;
+                    }
+                    // Calculate average of first 30 points
+                    const sum = channel.points.reduce((acc: number, p: any) => acc + p.y, 0);
+                    const average = sum / channel.points.length;
+                    return `\n${channel.channel} Channel:\n  Sample Size: ${channel.points.length} points\n  Average Threshold: ${average.toFixed(3)} mV`;
+                }).join('\n');
+            } else {
+                thresholdText = '\nNo EKG data captured. Start EKG streaming to capture threshold data.';
+            }
+
             return `
 THRESHOLD TEST REPORT
 ===================
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-Device Info: ${headerInfo.deviceInfo}
+Device Info: ${headerInfo.deviceInfo?.model || 'Not available'}
 DCM Info: ${headerInfo.dcmInfo}
+
+Threshold Test Results:
+-----------------------${thresholdText}
             `.trim();
+        }
 
         // measured data report    
-        case 'measured':
+        case 'measured': {
+            let ekgDataText = '';
+            if (headerInfo.ekgData && headerInfo.ekgData.length > 0) {
+                ekgDataText = headerInfo.ekgData.map((channel: any) => {
+                    if (!channel.points || channel.points.length === 0) {
+                        return `\n${channel.channel} Channel: No data`;
+                    }
+                    const pointsText = channel.points
+                        .map((p: any, i: number) => `  Point ${i + 1}: Time=${p.x}, Value=${p.y.toFixed(3)}`)
+                        .join('\n');
+                    return `\n${channel.channel} Channel (${channel.points.length} points):\n${pointsText}`;
+                }).join('\n');
+            } else {
+                ekgDataText = '\nNo EKG data captured. Start EKG streaming to capture data.';
+            }
+
             return `
 MEASURED DATA REPORT
 ===================
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-Device Info: ${headerInfo.deviceInfo}
+Device Info: ${headerInfo.deviceInfo?.model || 'Not available'}
 DCM Info: ${headerInfo.dcmInfo}
+
+EKG Data (First 30 Points):
+---------------------------${ekgDataText}
             `.trim();
+        }
 
         // marker legend report
         case 'markers':
