@@ -231,6 +231,33 @@ useEffect(() => {
             });
           }
           console.log("Device info updated:", data.serialNumber, data.deviceModel);
+        } else if (data.type === "BOARD_PARAMETERS_RESPONSE") {
+          // Board parameters received from pacemaker
+          console.log("BOARD_PARAMETERS_RESPONSE received:", data);
+          
+          if (selectedPatientRef.current && currentUserRef.current && data.parameters) {
+            setSelectedPatient({
+              ...selectedPatientRef.current,
+              parameters: data.parameters
+            });
+            
+            // Also persist to localStorage
+            setSavedUsers((prev) => {
+              return prev.map((user) =>
+                user.username === currentUserRef.current
+                  ? { 
+                      ...user, 
+                      patientData: { 
+                        ...user.patientData, 
+                        parameters: data.parameters
+                      } 
+                    }
+                  : user
+              );
+            });
+            
+            console.log("Board parameters loaded successfully");
+          }
         } else {
           console.log("Message from Python:", rawData);
         }
@@ -423,6 +450,16 @@ useEffect(() => {
     // not sending to backend here anymore.
     // Sending is now exclusively handled by the "Send to Pacemaker" button
     // via handleSendToPacemaker to separate persist vs transmit actions.
+  };
+
+  const handleLoadBoardParameters = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = {
+        type: "LOAD_BOARD_PARAMETERS_REQUEST"
+      };
+      wsRef.current.send(JSON.stringify(message));
+      console.log("Requesting current board parameters...");
+    }
   };
 
   const handleSendToPacemaker = (data: any) => {
@@ -767,6 +804,7 @@ useEffect(() => {
                   selectedPatient={selectedPatient}
                   onParameterSaved={handleParametersSaved}
                   onSendToPacemaker={handleSendToPacemaker}
+                  onLoadBoardParameters={handleLoadBoardParameters}
                   verificationStatus={verificationStatus}
                   isConnected={telemetryState.connectionState === "Connected"}
                 />

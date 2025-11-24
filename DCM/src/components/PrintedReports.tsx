@@ -640,7 +640,7 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
     Institution: ${institution}
     Date/Time: ${headerInfo.date}
     Device Info: ${headerInfo.deviceInfo}
-    DCM Info: ${headerInfo.dcmInfo}
+    Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
     Last Modified: ${lastModified}
 
     ${params ? 'Temporary parameters (not yet saved):' : 'No temporary parameters - all changes have been saved'}
@@ -654,7 +654,7 @@ function generateReportContent(report: Report | null, headerInfo: any): string {
     Institution: ${institution}
     Date/Time: ${headerInfo.date}
     Device Info: ${headerInfo.deviceInfo}
-    DCM Info: ${headerInfo.dcmInfo}
+    Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
 
     Saved parameters:
     ${paramsText}
@@ -675,7 +675,7 @@ IMPLANT DATA REPORT
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${serialNumber}
 
 Device Information:
 -------------------
@@ -709,7 +709,7 @@ THRESHOLD TEST REPORT
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
 Device Info: ${headerInfo.deviceInfo?.model || 'Not available'}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
 
 Threshold Test Results:
 -----------------------${thresholdText}
@@ -740,7 +740,7 @@ MEASURED DATA REPORT
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
 Device Info: ${headerInfo.deviceInfo?.model || 'Not available'}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
 
 EKG Data (First 30 Points):
 ---------------------------${ekgDataText}
@@ -756,7 +756,7 @@ MARKER LEGEND
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
 Device Info: ${headerInfo.deviceInfo}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
             `.trim();
 
         // session net change report
@@ -792,7 +792,7 @@ SESSION NET CHANGE REPORT
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
 
 No session history available for this patient.
                 `.trim();
@@ -816,7 +816,7 @@ SESSION NET CHANGE REPORT
 =========================
 
 Institution: ${headerInfo.institution}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
 Patient ID: ${id || 'N/A'}
 
 Session Start: ${firstTimestamp}
@@ -830,17 +830,51 @@ Total Parameters Modified: ${changes.length}
             `.trim();
         }
 
-        // final report
-        case 'final':
+        // final report - consolidated report of multiple reports
+        case 'final': {
+            // Generate all component reports
+            const measuredReport = generateReportContent({ id: 'measured', name: 'Measured Data Report', description: '', type: 'diagnostic', isAvailable: true }, headerInfo);
+            const thresholdReport = generateReportContent({ id: 'threshold', name: 'Threshold Test Report', description: '', type: 'diagnostic', isAvailable: true }, headerInfo);
+            const trendingReport = generateReportContent({ id: 'trending', name: 'Trending Report', description: '', type: 'diagnostic', isAvailable: true }, headerInfo);
+            const histogramReport = generateReportContent({ id: 'histogram', name: 'Histogram Report', description: '', type: 'diagnostic', isAvailable: true }, headerInfo);
+            const implantReport = generateReportContent({ id: 'implant', name: 'Implant Data Report', description: '', type: 'status', isAvailable: true }, headerInfo);
+            const sessionReport = generateReportContent({ id: 'session', name: 'Session Net Change', description: '', type: 'status', isAvailable: true }, headerInfo);
+            
             return `
 FINAL REPORT
-===================
+============
 
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
-Device Info: ${headerInfo.deviceInfo}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
+
+================================================================================
+
+${measuredReport}
+
+================================================================================
+
+${thresholdReport}
+
+================================================================================
+
+${trendingReport}
+
+================================================================================
+
+${histogramReport}
+
+================================================================================
+
+${implantReport}
+
+================================================================================
+
+${sessionReport}
+
+================================================================================
             `.trim();
+        }
 
         // histogram report    
         case 'histogram':
@@ -851,7 +885,7 @@ HISTOGRAM REPORT
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
 Device Info: ${headerInfo.deviceInfo}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
             `.trim();
 
         // trending report    
@@ -863,7 +897,7 @@ TRENDING REPORT
 Institution: ${headerInfo.institution}
 Date/Time: ${headerInfo.date}
 Device Info: ${headerInfo.deviceInfo}
-DCM Info: ${headerInfo.dcmInfo}
+Device Serial Number: ${headerInfo.deviceInfo?.serialNumber || 'Not available'}
             `.trim();
         default:
             return 'No report data available.';

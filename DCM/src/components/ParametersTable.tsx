@@ -35,6 +35,7 @@ interface ParametersTableProps {
   selectedPatient: any;
   onParameterSaved: (parameter: any) => void;
   onSendToPacemaker?: (parameters: any) => void;
+  onLoadBoardParameters?: () => void;
   verificationStatus?: {
     status: "pending" | "verified" | "failed" | null;
     message: string;
@@ -81,6 +82,7 @@ export function ParametersTable({
   selectedPatient,
   onParameterSaved,
   onSendToPacemaker,
+  onLoadBoardParameters,
   verificationStatus,
   isConnected = false,
 }: ParametersTableProps) {
@@ -1196,6 +1198,12 @@ export function ParametersTable({
     setHasChanges(true);
   };
 
+  // Load parameters from the connected board
+  const handleLoadBoardParameters = () => {
+    // Call the callback to request parameters from the board
+    onLoadBoardParameters?.();
+  };
+
   // Save parameters to localStorage
   const saveToLocalStorage = (patientId: string, params: any) => {
     try {
@@ -1923,6 +1931,16 @@ export function ParametersTable({
                   variant="secondary"
                 >
                   Reset to Nominal Values
+                </Button>
+
+                <Button
+                  onClick={handleLoadBoardParameters}
+                  disabled={!isConnected}
+                  className="w-full h-11"
+                  variant="secondary"
+                  title={!isConnected ? "Cannot load: device not connected" : "Load current parameters from connected board"}
+                >
+                  Load Board Parameters
                 </Button>
 
                 <Button
