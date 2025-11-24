@@ -252,6 +252,18 @@ useEffect(() => {
     return () => clearInterval(timer);
   }, []);
 
+  // Stop EKG streaming when switching away from strip chart tab
+  useEffect(() => {
+    if (activeTab !== "egm") {
+      // Send stop request when leaving the EGM tab
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        const message = { type: "EKG_STOP_REQUEST" };
+        wsRef.current.send(JSON.stringify(message));
+        console.log("end EKG due to switched tab");
+      }
+    }
+  }, [activeTab]);
+
   const [savedUsers, setSavedUsers] = useState<User[]>(() => {
     // Load previously saved users from localStorage
     // Use a consistent key name: 'dcm_users'
@@ -762,6 +774,7 @@ useEffect(() => {
                   serialNumber: selectedPatient?.device?.serialNumber,
                   model: selectedPatient?.device?.model,
                 }}
+                ekgData={ekgData || undefined}
               />
             )}
             {activeTab === "about" && (
