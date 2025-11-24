@@ -146,11 +146,12 @@ class PacemakerInputs_template:
 
             # packet.extend(struct.pack('<I', float(self.fixedAVDelay))) # bytes 108-111
 
-            # packet.extend(struct.pack('<B', float(self.dynamicAVDelay))) # bytes 112
+            # packet.extend(struct.pack('<B', int(self.dynamicAVDelay))) # bytes 112
+            
+            # packet.extend(struct.pack('<b', int(self.sensedAVDelayOffset))) # bytes 113
 
-
-            # packet.extend(struct.pack('<I', float(self.pvarpExtension))) # bytes 108-111
-
+            # packet.extend(struct.pack('<I', int(self.pvarpExtension))) # bytes 108-111
+ 
 
             self.ser.write(packet)
             self.ser.flush()
