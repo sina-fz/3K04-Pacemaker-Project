@@ -820,14 +820,22 @@ export function ParametersTable({
               }
             }
             
-            // MSR must be greater than LRL (but not necessarily greater than URL)
+            // LRL ≤ MSR ≤ URL
             if (param.id === "maximumSensorRate") {
-              if (currentLowerRate !== undefined && numValue <= currentLowerRate) {
+              if (currentLowerRate !== undefined && numValue < currentLowerRate) {
+                isValid = false;
+              }
+              if (currentUpperRate !== undefined && numValue > currentUpperRate) {
                 isValid = false;
               }
             } else if (param.id === "lowerRateLimit" && currentMSR !== undefined) {
-              // LRL must be less than MSR
-              if (numValue >= currentMSR) {
+              // LRL must be less than or equal to MSR
+              if (numValue > currentMSR) {
+                isValid = false;
+              }
+            } else if (param.id === "upperRateLimit" && currentMSR !== undefined) {
+              // URL must be greater than or equal to MSR
+              if (numValue < currentMSR) {
                 isValid = false;
               }
             }
@@ -948,22 +956,27 @@ export function ParametersTable({
           if (param.id !== id) {
             let isValid = param.isValid !== false; // preserve other validation
             
-            // MSR must be greater than LRL (but not necessarily greater than URL)
+            // MSR must be: LRL ≤ MSR ≤ URL
             if (param.id === "maximumSensorRate") {
-              if (newLRL !== undefined && newMSR !== undefined && newMSR <= newLRL) {
+              if (newLRL !== undefined && newMSR !== undefined && newMSR < newLRL) {
+                isValid = false;
+              }
+              if (newURL !== undefined && newMSR !== undefined && newMSR > newURL) {
                 isValid = false;
               }
             } else if (param.id === "upperRateLimit") {
-              // URL must still be >= LRL (existing constraint)
+              // URL must be >= MSR and >= LRL (existing constraint)
+              if (newMSR !== undefined && newURL !== undefined && newURL < newMSR) {
+                isValid = false;
+              }
               if (newLRL !== undefined && newURL !== undefined && newURL < newLRL) {
                 isValid = false;
               }
             } else if (param.id === "lowerRateLimit") {
-              // LRL must be less than MSR
-              if (newMSR !== undefined && newLRL !== undefined && newLRL >= newMSR) {
+              // LRL must be <= MSR and <= URL (existing constraint)
+              if (newMSR !== undefined && newLRL !== undefined && newLRL > newMSR) {
                 isValid = false;
               }
-              // LRL must still be <= URL (existing constraint)
               if (newURL !== undefined && newLRL !== undefined && newLRL > newURL) {
                 isValid = false;
               }
@@ -1552,8 +1565,8 @@ export function ParametersTable({
                 </>
               ) : hasMSRError ? (
                 <>
-                  <strong>Maximum Sensor Rate Error:</strong> Maximum Sensor Rate (MSR) must be greater than both Upper Rate Limit (URL) and Lower Rate Limit (LRL). 
-                  Please adjust MSR, URL, or LRL to satisfy: MSR &gt; URL and MSR &gt; LRL.
+                  <strong>Maximum Sensor Rate Error:</strong> Maximum Sensor Rate (MSR) must satisfy: Lower Rate Limit (LRL) ≤ MSR ≤ Upper Rate Limit (URL). 
+                  Please adjust MSR, URL, or LRL to satisfy both constraints.
                 </>
               ) : hasAVDelayError ? (
                 <>

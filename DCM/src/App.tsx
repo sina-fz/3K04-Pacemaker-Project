@@ -232,13 +232,16 @@ useEffect(() => {
             });
           }
           console.log("Device info updated:", data.serialNumber, data.deviceModel);
-        } else if (data.type === "BOARD_PARAMETERS_RESPONSE") {
+        } else if (data.type === "BOARD_PARAMETERS_LOADED") {
           // Board parameters received from pacemaker
-          console.log("BOARD_PARAMETERS_RESPONSE received:", data);
+          console.log("BOARD_PARAMETERS_LOADED received:", data);
           
-          if (data.parameters && loadBoardParamsCallbackRef.current) {
+          if (loadBoardParamsCallbackRef.current) {
+            // Extract parameters from the message (excluding type and mode)
+            const { type, mode, ...parameters } = data;
+            
             // Call the callback from ParametersTable to update local state with dirty flags
-            loadBoardParamsCallbackRef.current(data.parameters);
+            loadBoardParamsCallbackRef.current(parameters);
             loadBoardParamsCallbackRef.current = null; // Clear the callback
             
             console.log("Board parameters loaded and marked as dirty");
