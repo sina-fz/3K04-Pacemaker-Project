@@ -210,7 +210,6 @@ class PacemakerInputs_template:
             self.close()
             return False
 
-
     # send request for board parameters via serial
     def sendLoadParametersRequest(self):
         if not self.ser.is_open:
@@ -237,7 +236,7 @@ class PacemakerInputs_template:
             # start of packet (request for board parameters)
             packet = bytearray(99)
             packet[0] = 0x16  # SYNC byte 1
-            packet[1] = 0x46  # Function code byte 2
+            packet[1] = 0x60  # Function code byte 2
             packet[2] = 1 # Flag enable for serial handshake byte 3
 
             self.ser.write(packet)
@@ -276,7 +275,7 @@ class PacemakerInputs_template:
                     response_packet = self.ser.read(99)
                     
                     # Check header bytes for parameter load response
-                    if not(response_packet[0] == 0x16 and response_packet[1] == 0x2A):
+                    if not(response_packet[0] == 0x16 and response_packet[1] == 0x44):
                         # invalid packet, but port still active, keep looping
                         await asyncio.sleep(0.0001)
                         continue
