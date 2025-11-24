@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'AAIRVVIRWORK'.
  *
- * Model version                  : 1.422
+ * Model version                  : 1.423
  * Simulink Coder version         : 9.3 (R2020a) 18-Nov-2019
- * C/C++ source code generated on : Sun Nov 23 23:14:34 2025
+ * C/C++ source code generated on : Mon Nov 24 01:15:23 2025
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex
@@ -53,6 +53,8 @@ typedef struct {
   real_T csumrev[19];
   uint8_T RxDataLocChar[99];
   uint8_T TxDataLocChar[99];
+  MW_AnalogIn_TriggerSource_Type trigger_val;
+  uint32_T TxPinLoc;
   uint32_T RxPinLoc;
   real_T Gain4;                        /* '<S13>/Gain4' */
   real_T Memory;                       /* '<S1>/Memory' */
@@ -111,14 +113,13 @@ typedef struct {
   uint8_T BytePack[4];                 /* '<S9>/Byte Pack' */
   uint8_T BytePack1[4];                /* '<S9>/Byte Pack1' */
   uint8_T BytePack34[89];              /* '<S9>/Byte Pack34' */
-  MW_AnalogIn_TriggerSource_Type trigger_val;
-  uint32_T TxPinLoc;
   uint8_T BytePack6;                   /* '<S9>/Byte Pack6' */
   uint8_T BytePack7;                   /* '<S9>/Byte Pack7' */
   uint8_T BytePack8[4];                /* '<S9>/Byte Pack8' */
   uint8_T BytePack9[4];                /* '<S9>/Byte Pack9' */
   uint8_T BytePack10[89];              /* '<S9>/Byte Pack10' */
   uint8_T BytePack11;                  /* '<S9>/Byte Pack11' */
+  uint8_T MultiportSwitch1;            /* '<S9>/Multiport Switch1' */
   uint8_T BytePack12;                  /* '<S9>/Byte Pack12' */
   uint8_T BytePack15[4];               /* '<S9>/Byte Pack15' */
   uint8_T BytePack13[4];               /* '<S9>/Byte Pack13' */
@@ -169,6 +170,7 @@ typedef struct {
   freedomk64f_AnalogInput_AAIRV_T obj_f;/* '<S1>/Analog Input' */
   freedomk64f_AnalogInput_AAIRV_T obj_p;/* '<S1>/Analog Input4' */
   freedomk64f_AnalogInput_AAIRV_T obj_d;/* '<S1>/Analog Input1' */
+  freedomk64f_AnalogInput_AAIRV_T obj_g;/* '<S1>/Analog Input2' */
   freedomk64f_SCIRead_AAIRVVIRW_T obj_m;/* '<S1>/Serial Receive' */
   freedomk64f_DigitalWrite_AAIR_T obj_p5;/* '<S4>/Digital Write' */
   freedomk64f_DigitalWrite_AAIR_T obj_pd;/* '<S4>/Digital Write1' */
@@ -290,6 +292,7 @@ typedef struct {
   boolean_T objisempty_fp;             /* '<S1>/Analog Input' */
   boolean_T objisempty_kg;             /* '<S1>/Analog Input4' */
   boolean_T objisempty_kb;             /* '<S1>/Analog Input1' */
+  boolean_T objisempty_lf;             /* '<S1>/Analog Input2' */
   boolean_T objisempty_l1;             /* '<S1>/Digital Write1' */
 } DW_AAIRVVIRWORK_T;
 
@@ -301,6 +304,9 @@ typedef struct {
 
 /* Parameters (default storage) */
 struct P_AAIRVVIRWORK_T_ {
+  real_T AnalogInput2_SampleTime;      /* Expression: SampleTime
+                                        * Referenced by: '<S1>/Analog Input2'
+                                        */
   real_T AnalogInput1_SampleTime;      /* Expression: SampleTime
                                         * Referenced by: '<S1>/Analog Input1'
                                         */
@@ -399,6 +405,12 @@ struct P_AAIRVVIRWORK_T_ {
   boolean_T Constant15_Value;          /* Expression: true
                                         * Referenced by: '<S1>/Constant15'
                                         */
+  uint8_T Constant5_Value;             /* Computed Parameter: Constant5_Value
+                                        * Referenced by: '<S9>/Constant5'
+                                        */
+  uint8_T Constant2_Value;             /* Computed Parameter: Constant2_Value
+                                        * Referenced by: '<S9>/Constant2'
+                                        */
   uint8_T Constant4_Value;             /* Computed Parameter: Constant4_Value
                                         * Referenced by: '<S9>/Constant4'
                                         */
@@ -419,9 +431,6 @@ struct P_AAIRVVIRWORK_T_ {
                                         */
   uint8_T Constant1_Value_k;           /* Computed Parameter: Constant1_Value_k
                                         * Referenced by: '<S9>/Constant1'
-                                        */
-  uint8_T Constant2_Value;             /* Computed Parameter: Constant2_Value
-                                        * Referenced by: '<S9>/Constant2'
                                         */
 };
 

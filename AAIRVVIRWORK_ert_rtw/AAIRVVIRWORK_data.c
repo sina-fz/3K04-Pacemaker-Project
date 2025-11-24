@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'AAIRVVIRWORK'.
  *
- * Model version                  : 1.422
+ * Model version                  : 1.423
  * Simulink Coder version         : 9.3 (R2020a) 18-Nov-2019
- * C/C++ source code generated on : Sun Nov 23 23:14:34 2025
+ * C/C++ source code generated on : Mon Nov 24 01:15:23 2025
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex
@@ -22,6 +22,11 @@
 
 /* Block parameters (default storage) */
 P_AAIRVVIRWORK_T AAIRVVIRWORK_P = {
+  /* Expression: SampleTime
+   * Referenced by: '<S1>/Analog Input2'
+   */
+  -1.0,
+
   /* Expression: SampleTime
    * Referenced by: '<S1>/Analog Input1'
    */
@@ -177,6 +182,16 @@ P_AAIRVVIRWORK_T AAIRVVIRWORK_P = {
    */
   1,
 
+  /* Computed Parameter: Constant5_Value
+   * Referenced by: '<S9>/Constant5'
+   */
+  68U,
+
+  /* Computed Parameter: Constant2_Value
+   * Referenced by: '<S9>/Constant2'
+   */
+  57U,
+
   /* Computed Parameter: Constant4_Value
    * Referenced by: '<S9>/Constant4'
    */
@@ -218,12 +233,7 @@ P_AAIRVVIRWORK_T AAIRVVIRWORK_P = {
   /* Computed Parameter: Constant1_Value_k
    * Referenced by: '<S9>/Constant1'
    */
-  22U,
-
-  /* Computed Parameter: Constant2_Value
-   * Referenced by: '<S9>/Constant2'
-   */
-  57U
+  22U
 };
 
 /*

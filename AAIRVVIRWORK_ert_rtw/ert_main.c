@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'AAIRVVIRWORK'.
  *
- * Model version                  : 1.422
+ * Model version                  : 1.423
  * Simulink Coder version         : 9.3 (R2020a) 18-Nov-2019
- * C/C++ source code generated on : Sun Nov 23 23:14:34 2025
+ * C/C++ source code generated on : Mon Nov 24 01:15:23 2025
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex

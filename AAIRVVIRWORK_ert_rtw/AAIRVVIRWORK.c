@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'AAIRVVIRWORK'.
  *
- * Model version                  : 1.422
+ * Model version                  : 1.423
  * Simulink Coder version         : 9.3 (R2020a) 18-Nov-2019
- * C/C++ source code generated on : Sun Nov 23 23:14:34 2025
+ * C/C++ source code generated on : Mon Nov 24 01:15:23 2025
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex
@@ -29,7 +29,8 @@
 #define AAIRVVIRWORK_IN_Safety_Check   ((uint8_T)6U)
 #define AAIRVVIRWORK_IN_Standby        ((uint8_T)7U)
 #define AAIRVVIRWORK_IN_Write_Data     ((uint8_T)8U)
-#define AAIRVVIR_IN_setToZeroForTesting ((uint8_T)9U)
+#define AAIRVVIRWORK_IN_par_load       ((uint8_T)9U)
+#define AAIRVVIR_IN_setToZeroForTesting ((uint8_T)10U)
 #define AAIRV_IN_HandshakeRequestEnable ((uint8_T)3U)
 
 /* Named constants for Chart: '<S1>/HeartChamberPulseDetection' */
@@ -111,47 +112,47 @@ static void AAIRVVIRWORK_AOO(void);
 static void AAIRVVIRWORK_AOOR(void);
 static void AAIRVVIRWORK_Standby(void);
 static void AAIRVVIRWORK_VVI(void);
-static void AAIRV_SystemCore_release_pfn2ei(const
+static void AAIR_SystemCore_release_pfn2eia(const
   freedomk64f_SCIRead_AAIRVVIRW_T *obj);
-static void AAIRVV_SystemCore_delete_pfn2ei(const
+static void AAIRV_SystemCore_delete_pfn2eia(const
   freedomk64f_SCIRead_AAIRVVIRW_T *obj);
-static void matlabCodegenHandle_matl_pfn2ei(freedomk64f_SCIRead_AAIRVVIRW_T *obj);
-static void AAIRVVI_SystemCore_release_pfn2(const
+static void matlabCodegenHandle_mat_pfn2eia(freedomk64f_SCIRead_AAIRVVIRW_T *obj);
+static void AAIRVV_SystemCore_release_pfn2e(const
   freedomk64f_DigitalRead_AAIRV_T *obj);
-static void AAIRVVIR_SystemCore_delete_pfn2(const
+static void AAIRVVI_SystemCore_delete_pfn2e(const
   freedomk64f_DigitalRead_AAIRV_T *obj);
-static void matlabCodegenHandle_matlab_pfn2(freedomk64f_DigitalRead_AAIRV_T *obj);
+static void matlabCodegenHandle_matla_pfn2e(freedomk64f_DigitalRead_AAIRV_T *obj);
 static void AAIRVVIRWORK_SystemCore_release(const
   freedomk64f_DigitalWrite_AAIR_T *obj);
 static void AAIRVVIRWORK_SystemCore_delete(const freedomk64f_DigitalWrite_AAIR_T
   *obj);
 static void matlabCodegenHandle_matlabCodeg(freedomk64f_DigitalWrite_AAIR_T *obj);
-static void SystemCore_release_pfn2eia2mtlt(const
+static void SystemCore_releas_pfn2eia2mtltj(const
   freedomk64f_PWMOutput_AAIRVVI_T *obj);
-static void SystemCore_delete_pfn2eia2mtlt(const freedomk64f_PWMOutput_AAIRVVI_T
-  *obj);
-static void matlabCodegenHandl_pfn2eia2mtlt(freedomk64f_PWMOutput_AAIRVVI_T *obj);
+static void SystemCore_delete_pfn2eia2mtltj(const
+  freedomk64f_PWMOutput_AAIRVVI_T *obj);
+static void matlabCodegenHand_pfn2eia2mtltj(freedomk64f_PWMOutput_AAIRVVI_T *obj);
 static void AAIRVVIRWO_SystemCore_release_p(const
   freedomk64f_AnalogInput_AAIRV_T *obj);
 static void AAIRVVIRWOR_SystemCore_delete_p(const
   freedomk64f_AnalogInput_AAIRV_T *obj);
 static void matlabCodegenHandle_matlabCod_p(freedomk64f_AnalogInput_AAIRV_T *obj);
-static void AAIR_SystemCore_release_pfn2eia(const
+static void AAI_SystemCore_release_pfn2eia2(const
   freedomk64f_SCIWrite_AAIRVVIR_T *obj);
-static void AAIRV_SystemCore_delete_pfn2eia(const
+static void AAIR_SystemCore_delete_pfn2eia2(const
   freedomk64f_SCIWrite_AAIRVVIR_T *obj);
-static void matlabCodegenHandle_mat_pfn2eia(freedomk64f_SCIWrite_AAIRVVIR_T *obj);
-static void AA_SystemCore_release_pfn2eia2m(const
+static void matlabCodegenHandle_ma_pfn2eia2(freedomk64f_SCIWrite_AAIRVVIR_T *obj);
+static void A_SystemCore_release_pfn2eia2mt(const
   freedomk64f_fxos8700_AAIRVVIR_T *obj);
-static void AAI_SystemCore_delete_pfn2eia2m(const
+static void AA_SystemCore_delete_pfn2eia2mt(const
   freedomk64f_fxos8700_AAIRVVIR_T *obj);
-static void matlabCodegenHandle_m_pfn2eia2m(freedomk64f_fxos8700_AAIRVVIR_T *obj);
-static void A_SystemCore_release_pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj);
-static void AA_SystemCore_delete_pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj);
-static void matlabCodegenHandle__pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj);
-static void AAI_SystemCore_release_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj);
-static void AAIR_SystemCore_delete_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj);
-static void matlabCodegenHandle_ma_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj);
+static void matlabCodegenHandle__pfn2eia2mt(freedomk64f_fxos8700_AAIRVVIR_T *obj);
+static void SystemCore_release_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj);
+static void A_SystemCore_delete_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj);
+static void matlabCodegenHandle_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj);
+static void AA_SystemCore_release_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj);
+static void AAI_SystemCore_delete_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj);
+static void matlabCodegenHandle_m_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj);
 static void AAIRVVIRWORK_SystemCore_setup_p(freedomk64f_SCIWrite_AAIRVVIR_T *obj);
 static void AAIRVVIRWOR_SystemCore_setup_pf(freedomk64f_fxos8700_AAIRVVIR_T *obj);
 static void AAIRVVIRWORK_SystemCore_setup(freedomk64f_SCIRead_AAIRVVIRW_T *obj);
@@ -1136,7 +1137,7 @@ static void AAIRVVIRWORK_VVI(void)
   }
 }
 
-static void AAIRV_SystemCore_release_pfn2ei(const
+static void AAIR_SystemCore_release_pfn2eia(const
   freedomk64f_SCIRead_AAIRVVIRW_T *obj)
 {
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1144,21 +1145,21 @@ static void AAIRV_SystemCore_release_pfn2ei(const
   }
 }
 
-static void AAIRVV_SystemCore_delete_pfn2ei(const
+static void AAIRV_SystemCore_delete_pfn2eia(const
   freedomk64f_SCIRead_AAIRVVIRW_T *obj)
 {
-  AAIRV_SystemCore_release_pfn2ei(obj);
+  AAIR_SystemCore_release_pfn2eia(obj);
 }
 
-static void matlabCodegenHandle_matl_pfn2ei(freedomk64f_SCIRead_AAIRVVIRW_T *obj)
+static void matlabCodegenHandle_mat_pfn2eia(freedomk64f_SCIRead_AAIRVVIRW_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
-    AAIRVV_SystemCore_delete_pfn2ei(obj);
+    AAIRV_SystemCore_delete_pfn2eia(obj);
   }
 }
 
-static void AAIRVVI_SystemCore_release_pfn2(const
+static void AAIRVV_SystemCore_release_pfn2e(const
   freedomk64f_DigitalRead_AAIRV_T *obj)
 {
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1166,17 +1167,17 @@ static void AAIRVVI_SystemCore_release_pfn2(const
   }
 }
 
-static void AAIRVVIR_SystemCore_delete_pfn2(const
+static void AAIRVVI_SystemCore_delete_pfn2e(const
   freedomk64f_DigitalRead_AAIRV_T *obj)
 {
-  AAIRVVI_SystemCore_release_pfn2(obj);
+  AAIRVV_SystemCore_release_pfn2e(obj);
 }
 
-static void matlabCodegenHandle_matlab_pfn2(freedomk64f_DigitalRead_AAIRV_T *obj)
+static void matlabCodegenHandle_matla_pfn2e(freedomk64f_DigitalRead_AAIRV_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
-    AAIRVVIR_SystemCore_delete_pfn2(obj);
+    AAIRVVI_SystemCore_delete_pfn2e(obj);
   }
 }
 
@@ -1202,7 +1203,7 @@ static void matlabCodegenHandle_matlabCodeg(freedomk64f_DigitalWrite_AAIR_T *obj
   }
 }
 
-static void SystemCore_release_pfn2eia2mtlt(const
+static void SystemCore_releas_pfn2eia2mtltj(const
   freedomk64f_PWMOutput_AAIRVVI_T *obj)
 {
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1211,17 +1212,17 @@ static void SystemCore_release_pfn2eia2mtlt(const
   }
 }
 
-static void SystemCore_delete_pfn2eia2mtlt(const freedomk64f_PWMOutput_AAIRVVI_T
-  *obj)
+static void SystemCore_delete_pfn2eia2mtltj(const
+  freedomk64f_PWMOutput_AAIRVVI_T *obj)
 {
-  SystemCore_release_pfn2eia2mtlt(obj);
+  SystemCore_releas_pfn2eia2mtltj(obj);
 }
 
-static void matlabCodegenHandl_pfn2eia2mtlt(freedomk64f_PWMOutput_AAIRVVI_T *obj)
+static void matlabCodegenHand_pfn2eia2mtltj(freedomk64f_PWMOutput_AAIRVVI_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
-    SystemCore_delete_pfn2eia2mtlt(obj);
+    SystemCore_delete_pfn2eia2mtltj(obj);
   }
 }
 
@@ -1248,7 +1249,7 @@ static void matlabCodegenHandle_matlabCod_p(freedomk64f_AnalogInput_AAIRV_T *obj
   }
 }
 
-static void AAIR_SystemCore_release_pfn2eia(const
+static void AAI_SystemCore_release_pfn2eia2(const
   freedomk64f_SCIWrite_AAIRVVIR_T *obj)
 {
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1256,21 +1257,21 @@ static void AAIR_SystemCore_release_pfn2eia(const
   }
 }
 
-static void AAIRV_SystemCore_delete_pfn2eia(const
+static void AAIR_SystemCore_delete_pfn2eia2(const
   freedomk64f_SCIWrite_AAIRVVIR_T *obj)
 {
-  AAIR_SystemCore_release_pfn2eia(obj);
+  AAI_SystemCore_release_pfn2eia2(obj);
 }
 
-static void matlabCodegenHandle_mat_pfn2eia(freedomk64f_SCIWrite_AAIRVVIR_T *obj)
+static void matlabCodegenHandle_ma_pfn2eia2(freedomk64f_SCIWrite_AAIRVVIR_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
-    AAIRV_SystemCore_delete_pfn2eia(obj);
+    AAIR_SystemCore_delete_pfn2eia2(obj);
   }
 }
 
-static void AA_SystemCore_release_pfn2eia2m(const
+static void A_SystemCore_release_pfn2eia2mt(const
   freedomk64f_fxos8700_AAIRVVIR_T *obj)
 {
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1278,33 +1279,13 @@ static void AA_SystemCore_release_pfn2eia2m(const
   }
 }
 
-static void AAI_SystemCore_delete_pfn2eia2m(const
+static void AA_SystemCore_delete_pfn2eia2mt(const
   freedomk64f_fxos8700_AAIRVVIR_T *obj)
-{
-  AA_SystemCore_release_pfn2eia2m(obj);
-}
-
-static void matlabCodegenHandle_m_pfn2eia2m(freedomk64f_fxos8700_AAIRVVIR_T *obj)
-{
-  if (!obj->matlabCodegenIsDeleted) {
-    obj->matlabCodegenIsDeleted = true;
-    AAI_SystemCore_delete_pfn2eia2m(obj);
-  }
-}
-
-static void A_SystemCore_release_pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj)
-{
-  if (obj->isInitialized == 1) {
-    obj->isInitialized = 2;
-  }
-}
-
-static void AA_SystemCore_delete_pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj)
 {
   A_SystemCore_release_pfn2eia2mt(obj);
 }
 
-static void matlabCodegenHandle__pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj)
+static void matlabCodegenHandle__pfn2eia2mt(freedomk64f_fxos8700_AAIRVVIR_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
@@ -1312,7 +1293,27 @@ static void matlabCodegenHandle__pfn2eia2mt(b_freedomk64f_I2CMasterWrite__T *obj
   }
 }
 
-static void AAI_SystemCore_release_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj)
+static void SystemCore_release_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj)
+{
+  if (obj->isInitialized == 1) {
+    obj->isInitialized = 2;
+  }
+}
+
+static void A_SystemCore_delete_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj)
+{
+  SystemCore_release_pfn2eia2mtl(obj);
+}
+
+static void matlabCodegenHandle_pfn2eia2mtl(b_freedomk64f_I2CMasterWrite__T *obj)
+{
+  if (!obj->matlabCodegenIsDeleted) {
+    obj->matlabCodegenIsDeleted = true;
+    A_SystemCore_delete_pfn2eia2mtl(obj);
+  }
+}
+
+static void AA_SystemCore_release_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj)
 {
   g_dsp_private_SlidingWindowAv_T *obj_0;
   if ((obj->isInitialized == 1) && obj->isSetupComplete) {
@@ -1325,16 +1326,16 @@ static void AAI_SystemCore_release_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj
   }
 }
 
-static void AAIR_SystemCore_delete_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj)
+static void AAI_SystemCore_delete_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj)
 {
-  AAI_SystemCore_release_pfn2eia2(obj);
+  AA_SystemCore_release_pfn2eia2m(obj);
 }
 
-static void matlabCodegenHandle_ma_pfn2eia2(dsp_simulink_MovingAverage_AA_T *obj)
+static void matlabCodegenHandle_m_pfn2eia2m(dsp_simulink_MovingAverage_AA_T *obj)
 {
   if (!obj->matlabCodegenIsDeleted) {
     obj->matlabCodegenIsDeleted = true;
-    AAIR_SystemCore_delete_pfn2eia2(obj);
+    AAI_SystemCore_delete_pfn2eia2m(obj);
   }
 }
 
@@ -1689,6 +1690,12 @@ void AAIRVVIRWORK_step(void)
           AAIRVVIRWORK_B.MSG_trigger = 1U;
           AAIRVVIRWORK_B.MSG_ident = 0U;
           break;
+
+         case 96:
+          AAIRVVIRWORK_DW.is_c9_AAIRVVIRWORK = AAIRVVIRWORK_IN_par_load;
+          AAIRVVIRWORK_B.MSG_trigger = 1U;
+          AAIRVVIRWORK_B.MSG_ident = 3U;
+          break;
         }
       }
       break;
@@ -1699,6 +1706,12 @@ void AAIRVVIRWORK_step(void)
       AAIRVVIRWORK_DW.is_c9_AAIRVVIRWORK = AAIRVVIRWORK_IN_Echo;
       AAIRVVIRWORK_B.MSG_trigger = 1U;
       AAIRVVIRWORK_B.MSG_ident = 2U;
+      break;
+
+     case AAIRVVIRWORK_IN_par_load:
+      AAIRVVIRWORK_B.MSG_ident = 3U;
+      AAIRVVIRWORK_DW.is_c9_AAIRVVIRWORK = AAIRVVIRWORK_IN_Standby;
+      AAIRVVIRWORK_B.MSG_trigger = 0U;
       break;
 
      default:
@@ -3097,12 +3110,22 @@ void AAIRVVIRWORK_step(void)
     (void) memcpy(&AAIRVVIRWORK_B.BytePack11, &AAIRVVIRWORK_P.Constant1_Value_k,
                   1);
 
-    /* S-Function (any2byte): '<S9>/Byte Pack12' incorporates:
+    /* MultiPortSwitch: '<S9>/Multiport Switch1' incorporates:
      *  Constant: '<S9>/Constant2'
+     *  Constant: '<S9>/Constant5'
      */
+    if (AAIRVVIRWORK_B.MSG_ident == 2) {
+      AAIRVVIRWORK_B.MultiportSwitch1 = AAIRVVIRWORK_P.Constant2_Value;
+    } else {
+      AAIRVVIRWORK_B.MultiportSwitch1 = AAIRVVIRWORK_P.Constant5_Value;
+    }
+
+    /* End of MultiPortSwitch: '<S9>/Multiport Switch1' */
+
+    /* S-Function (any2byte): '<S9>/Byte Pack12' */
 
     /* Pack: <S9>/Byte Pack12 */
-    (void) memcpy(&AAIRVVIRWORK_B.BytePack12, &AAIRVVIRWORK_P.Constant2_Value,
+    (void) memcpy(&AAIRVVIRWORK_B.BytePack12, &AAIRVVIRWORK_B.MultiportSwitch1,
                   1);
 
     /* S-Function (any2byte): '<S9>/Byte Pack15' */
@@ -3270,6 +3293,83 @@ void AAIRVVIRWORK_step(void)
       AAIRVVIRWORK_B.RxDataLocChar[9] = AAIRVVIRWORK_B.BytePack9[3];
       memcpy(&AAIRVVIRWORK_B.RxDataLocChar[10], &AAIRVVIRWORK_B.BytePack10[0],
              89U * sizeof(uint8_T));
+      break;
+
+     case 2:
+      AAIRVVIRWORK_B.RxDataLocChar[0] = AAIRVVIRWORK_B.BytePack11;
+      AAIRVVIRWORK_B.RxDataLocChar[1] = AAIRVVIRWORK_B.BytePack12;
+      AAIRVVIRWORK_B.RxDataLocChar[2] = AAIRVVIRWORK_B.BytePack15[0];
+      AAIRVVIRWORK_B.RxDataLocChar[6] = AAIRVVIRWORK_B.BytePack13[0];
+      AAIRVVIRWORK_B.RxDataLocChar[10] = AAIRVVIRWORK_B.BytePack14[0];
+      AAIRVVIRWORK_B.RxDataLocChar[14] = AAIRVVIRWORK_B.BytePack16[0];
+      AAIRVVIRWORK_B.RxDataLocChar[3] = AAIRVVIRWORK_B.BytePack15[1];
+      AAIRVVIRWORK_B.RxDataLocChar[7] = AAIRVVIRWORK_B.BytePack13[1];
+      AAIRVVIRWORK_B.RxDataLocChar[11] = AAIRVVIRWORK_B.BytePack14[1];
+      AAIRVVIRWORK_B.RxDataLocChar[15] = AAIRVVIRWORK_B.BytePack16[1];
+      AAIRVVIRWORK_B.RxDataLocChar[4] = AAIRVVIRWORK_B.BytePack15[2];
+      AAIRVVIRWORK_B.RxDataLocChar[8] = AAIRVVIRWORK_B.BytePack13[2];
+      AAIRVVIRWORK_B.RxDataLocChar[12] = AAIRVVIRWORK_B.BytePack14[2];
+      AAIRVVIRWORK_B.RxDataLocChar[16] = AAIRVVIRWORK_B.BytePack16[2];
+      AAIRVVIRWORK_B.RxDataLocChar[5] = AAIRVVIRWORK_B.BytePack15[3];
+      AAIRVVIRWORK_B.RxDataLocChar[9] = AAIRVVIRWORK_B.BytePack13[3];
+      AAIRVVIRWORK_B.RxDataLocChar[13] = AAIRVVIRWORK_B.BytePack14[3];
+      AAIRVVIRWORK_B.RxDataLocChar[17] = AAIRVVIRWORK_B.BytePack16[3];
+      AAIRVVIRWORK_B.RxDataLocChar[26] = AAIRVVIRWORK_B.BytePack18[0];
+      AAIRVVIRWORK_B.RxDataLocChar[27] = AAIRVVIRWORK_B.BytePack18[1];
+      AAIRVVIRWORK_B.RxDataLocChar[28] = AAIRVVIRWORK_B.BytePack18[2];
+      AAIRVVIRWORK_B.RxDataLocChar[29] = AAIRVVIRWORK_B.BytePack18[3];
+      AAIRVVIRWORK_B.RxDataLocChar[38] = AAIRVVIRWORK_B.BytePack20[0];
+      AAIRVVIRWORK_B.RxDataLocChar[42] = AAIRVVIRWORK_B.BytePack21[0];
+      AAIRVVIRWORK_B.RxDataLocChar[46] = AAIRVVIRWORK_B.BytePack22[0];
+      AAIRVVIRWORK_B.RxDataLocChar[39] = AAIRVVIRWORK_B.BytePack20[1];
+      AAIRVVIRWORK_B.RxDataLocChar[43] = AAIRVVIRWORK_B.BytePack21[1];
+      AAIRVVIRWORK_B.RxDataLocChar[47] = AAIRVVIRWORK_B.BytePack22[1];
+      AAIRVVIRWORK_B.RxDataLocChar[40] = AAIRVVIRWORK_B.BytePack20[2];
+      AAIRVVIRWORK_B.RxDataLocChar[44] = AAIRVVIRWORK_B.BytePack21[2];
+      AAIRVVIRWORK_B.RxDataLocChar[48] = AAIRVVIRWORK_B.BytePack22[2];
+      AAIRVVIRWORK_B.RxDataLocChar[41] = AAIRVVIRWORK_B.BytePack20[3];
+      AAIRVVIRWORK_B.RxDataLocChar[45] = AAIRVVIRWORK_B.BytePack21[3];
+      AAIRVVIRWORK_B.RxDataLocChar[49] = AAIRVVIRWORK_B.BytePack22[3];
+      for (i = 0; i < 8; i++) {
+        AAIRVVIRWORK_B.RxDataLocChar[i + 18] = AAIRVVIRWORK_B.BytePack17[i];
+        AAIRVVIRWORK_B.RxDataLocChar[i + 30] = AAIRVVIRWORK_B.BytePack19[i];
+        AAIRVVIRWORK_B.RxDataLocChar[i + 50] = AAIRVVIRWORK_B.BytePack23[i];
+        AAIRVVIRWORK_B.RxDataLocChar[i + 58] = AAIRVVIRWORK_B.BytePack24[i];
+      }
+
+      AAIRVVIRWORK_B.RxDataLocChar[66] = AAIRVVIRWORK_B.BytePack25[0];
+      AAIRVVIRWORK_B.RxDataLocChar[70] = AAIRVVIRWORK_B.BytePack26[0];
+      AAIRVVIRWORK_B.RxDataLocChar[74] = AAIRVVIRWORK_B.BytePack27[0];
+      AAIRVVIRWORK_B.RxDataLocChar[78] = AAIRVVIRWORK_B.BytePack28[0];
+      AAIRVVIRWORK_B.RxDataLocChar[82] = AAIRVVIRWORK_B.BytePack29[0];
+      AAIRVVIRWORK_B.RxDataLocChar[86] = AAIRVVIRWORK_B.BytePack30[0];
+      AAIRVVIRWORK_B.RxDataLocChar[90] = AAIRVVIRWORK_B.BytePack31[0];
+      AAIRVVIRWORK_B.RxDataLocChar[94] = AAIRVVIRWORK_B.BytePack32[0];
+      AAIRVVIRWORK_B.RxDataLocChar[67] = AAIRVVIRWORK_B.BytePack25[1];
+      AAIRVVIRWORK_B.RxDataLocChar[71] = AAIRVVIRWORK_B.BytePack26[1];
+      AAIRVVIRWORK_B.RxDataLocChar[75] = AAIRVVIRWORK_B.BytePack27[1];
+      AAIRVVIRWORK_B.RxDataLocChar[79] = AAIRVVIRWORK_B.BytePack28[1];
+      AAIRVVIRWORK_B.RxDataLocChar[83] = AAIRVVIRWORK_B.BytePack29[1];
+      AAIRVVIRWORK_B.RxDataLocChar[87] = AAIRVVIRWORK_B.BytePack30[1];
+      AAIRVVIRWORK_B.RxDataLocChar[91] = AAIRVVIRWORK_B.BytePack31[1];
+      AAIRVVIRWORK_B.RxDataLocChar[95] = AAIRVVIRWORK_B.BytePack32[1];
+      AAIRVVIRWORK_B.RxDataLocChar[68] = AAIRVVIRWORK_B.BytePack25[2];
+      AAIRVVIRWORK_B.RxDataLocChar[72] = AAIRVVIRWORK_B.BytePack26[2];
+      AAIRVVIRWORK_B.RxDataLocChar[76] = AAIRVVIRWORK_B.BytePack27[2];
+      AAIRVVIRWORK_B.RxDataLocChar[80] = AAIRVVIRWORK_B.BytePack28[2];
+      AAIRVVIRWORK_B.RxDataLocChar[84] = AAIRVVIRWORK_B.BytePack29[2];
+      AAIRVVIRWORK_B.RxDataLocChar[88] = AAIRVVIRWORK_B.BytePack30[2];
+      AAIRVVIRWORK_B.RxDataLocChar[92] = AAIRVVIRWORK_B.BytePack31[2];
+      AAIRVVIRWORK_B.RxDataLocChar[96] = AAIRVVIRWORK_B.BytePack32[2];
+      AAIRVVIRWORK_B.RxDataLocChar[69] = AAIRVVIRWORK_B.BytePack25[3];
+      AAIRVVIRWORK_B.RxDataLocChar[73] = AAIRVVIRWORK_B.BytePack26[3];
+      AAIRVVIRWORK_B.RxDataLocChar[77] = AAIRVVIRWORK_B.BytePack27[3];
+      AAIRVVIRWORK_B.RxDataLocChar[81] = AAIRVVIRWORK_B.BytePack28[3];
+      AAIRVVIRWORK_B.RxDataLocChar[85] = AAIRVVIRWORK_B.BytePack29[3];
+      AAIRVVIRWORK_B.RxDataLocChar[89] = AAIRVVIRWORK_B.BytePack30[3];
+      AAIRVVIRWORK_B.RxDataLocChar[93] = AAIRVVIRWORK_B.BytePack31[3];
+      AAIRVVIRWORK_B.RxDataLocChar[97] = AAIRVVIRWORK_B.BytePack32[3];
+      AAIRVVIRWORK_B.RxDataLocChar[98] = AAIRVVIRWORK_B.BytePack33;
       break;
 
      default:
@@ -3660,6 +3760,18 @@ void AAIRVVIRWORK_step(void)
 
   /* End of MATLABSystem: '<S1>/Analog Input1' */
 
+  /* MATLABSystem: '<S1>/Analog Input2' */
+  if (AAIRVVIRWORK_DW.obj_g.SampleTime != AAIRVVIRWORK_P.AnalogInput2_SampleTime)
+  {
+    AAIRVVIRWORK_DW.obj_g.SampleTime = AAIRVVIRWORK_P.AnalogInput2_SampleTime;
+  }
+
+  MW_AnalogIn_Start(AAIRVVIRWORK_DW.obj_g.MW_ANALOGIN_HANDLE);
+  MW_AnalogInSingle_ReadResult(AAIRVVIRWORK_DW.obj_g.MW_ANALOGIN_HANDLE,
+    &AAIRVVIRWORK_B.Add, 7);
+
+  /* End of MATLABSystem: '<S1>/Analog Input2' */
+
   /* MATLABSystem: '<S1>/Digital Write1' incorporates:
    *  Constant: '<S1>/Constant15'
    */
@@ -3990,6 +4102,22 @@ void AAIRVVIRWORK_initialize(void)
       AAIRVVIRWORK_B.trigger_val, 0U);
     AAIRVVIRWORK_DW.obj_d.isSetupComplete = true;
 
+    /* Start for MATLABSystem: '<S1>/Analog Input2' */
+    AAIRVVIRWORK_DW.obj_g.matlabCodegenIsDeleted = true;
+    AAIRVVIRWORK_DW.obj_g.isInitialized = 0;
+    AAIRVVIRWORK_DW.obj_g.SampleTime = -1.0;
+    AAIRVVIRWORK_DW.obj_g.matlabCodegenIsDeleted = false;
+    AAIRVVIRWORK_DW.objisempty_lf = true;
+    AAIRVVIRWORK_DW.obj_g.SampleTime = AAIRVVIRWORK_P.AnalogInput2_SampleTime;
+    obj_2 = &AAIRVVIRWORK_DW.obj_g;
+    AAIRVVIRWORK_DW.obj_g.isSetupComplete = false;
+    AAIRVVIRWORK_DW.obj_g.isInitialized = 1;
+    obj_2->MW_ANALOGIN_HANDLE = MW_AnalogInSingle_Open(20U);
+    AAIRVVIRWORK_B.trigger_val = MW_ANALOGIN_SOFTWARE_TRIGGER;
+    MW_AnalogIn_SetTriggerSource(AAIRVVIRWORK_DW.obj_g.MW_ANALOGIN_HANDLE,
+      AAIRVVIRWORK_B.trigger_val, 0U);
+    AAIRVVIRWORK_DW.obj_g.isSetupComplete = true;
+
     /* Start for MATLABSystem: '<S1>/Digital Write1' */
     AAIRVVIRWORK_DW.obj_hw.matlabCodegenIsDeleted = true;
     AAIRVVIRWORK_DW.obj_hw.isInitialized = 0;
@@ -4007,13 +4135,13 @@ void AAIRVVIRWORK_initialize(void)
 void AAIRVVIRWORK_terminate(void)
 {
   /* Terminate for MATLABSystem: '<S1>/Serial Receive' */
-  matlabCodegenHandle_matl_pfn2ei(&AAIRVVIRWORK_DW.obj_m);
+  matlabCodegenHandle_mat_pfn2eia(&AAIRVVIRWORK_DW.obj_m);
 
   /* Terminate for MATLABSystem: '<S1>/ATR_CMP_DETECT' */
-  matlabCodegenHandle_matlab_pfn2(&AAIRVVIRWORK_DW.obj_i);
+  matlabCodegenHandle_matla_pfn2e(&AAIRVVIRWORK_DW.obj_i);
 
   /* Terminate for MATLABSystem: '<S1>/VENT_CMP_DETECT' */
-  matlabCodegenHandle_matlab_pfn2(&AAIRVVIRWORK_DW.obj_ci);
+  matlabCodegenHandle_matla_pfn2e(&AAIRVVIRWORK_DW.obj_ci);
 
   /* Terminate for MATLABSystem: '<S4>/Digital Write' */
   matlabCodegenHandle_matlabCodeg(&AAIRVVIRWORK_DW.obj_p5);
@@ -4028,7 +4156,7 @@ void AAIRVVIRWORK_terminate(void)
   matlabCodegenHandle_matlabCodeg(&AAIRVVIRWORK_DW.obj_n);
 
   /* Terminate for MATLABSystem: '<S4>/PWM Output' */
-  matlabCodegenHandl_pfn2eia2mtlt(&AAIRVVIRWORK_DW.obj_b);
+  matlabCodegenHand_pfn2eia2mtltj(&AAIRVVIRWORK_DW.obj_b);
 
   /* Terminate for MATLABSystem: '<S4>/Digital Write5' */
   matlabCodegenHandle_matlabCodeg(&AAIRVVIRWORK_DW.obj_np);
@@ -4043,10 +4171,10 @@ void AAIRVVIRWORK_terminate(void)
   matlabCodegenHandle_matlabCodeg(&AAIRVVIRWORK_DW.obj_h);
 
   /* Terminate for MATLABSystem: '<S4>/PWM Output1' */
-  matlabCodegenHandl_pfn2eia2mtlt(&AAIRVVIRWORK_DW.obj_mo);
+  matlabCodegenHand_pfn2eia2mtltj(&AAIRVVIRWORK_DW.obj_mo);
 
   /* Terminate for MATLABSystem: '<S4>/PWM Output2' */
-  matlabCodegenHandl_pfn2eia2mtlt(&AAIRVVIRWORK_DW.obj_a);
+  matlabCodegenHand_pfn2eia2mtltj(&AAIRVVIRWORK_DW.obj_a);
 
   /* Terminate for MATLABSystem: '<S1>/Analog Input' */
   matlabCodegenHandle_matlabCod_p(&AAIRVVIRWORK_DW.obj_f);
@@ -4056,17 +4184,17 @@ void AAIRVVIRWORK_terminate(void)
 
   /* Terminate for Triggered SubSystem: '<S1>/Subsystem1' */
   /* Terminate for MATLABSystem: '<S9>/Serial Transmit' */
-  matlabCodegenHandle_mat_pfn2eia(&AAIRVVIRWORK_DW.obj_ce);
+  matlabCodegenHandle_ma_pfn2eia2(&AAIRVVIRWORK_DW.obj_ce);
 
   /* End of Terminate for SubSystem: '<S1>/Subsystem1' */
 
   /* Terminate for Triggered SubSystem: '<S1>/Triggered Subsystem' */
   /* Terminate for MATLABSystem: '<S10>/FXOS8700 6-Axes Sensor' */
-  matlabCodegenHandle_m_pfn2eia2m(&AAIRVVIRWORK_DW.obj_c);
-  matlabCodegenHandle__pfn2eia2mt(&AAIRVVIRWORK_DW.obj_c.i2cobj);
+  matlabCodegenHandle__pfn2eia2mt(&AAIRVVIRWORK_DW.obj_c);
+  matlabCodegenHandle_pfn2eia2mtl(&AAIRVVIRWORK_DW.obj_c.i2cobj);
 
   /* Terminate for MATLABSystem: '<S10>/Moving Average' */
-  matlabCodegenHandle_ma_pfn2eia2(&AAIRVVIRWORK_DW.obj);
+  matlabCodegenHandle_m_pfn2eia2m(&AAIRVVIRWORK_DW.obj);
 
   /* End of Terminate for SubSystem: '<S1>/Triggered Subsystem' */
 
@@ -4075,6 +4203,9 @@ void AAIRVVIRWORK_terminate(void)
 
   /* Terminate for MATLABSystem: '<S1>/Analog Input1' */
   matlabCodegenHandle_matlabCod_p(&AAIRVVIRWORK_DW.obj_d);
+
+  /* Terminate for MATLABSystem: '<S1>/Analog Input2' */
+  matlabCodegenHandle_matlabCod_p(&AAIRVVIRWORK_DW.obj_g);
 
   /* Terminate for MATLABSystem: '<S1>/Digital Write1' */
   matlabCodegenHandle_matlabCodeg(&AAIRVVIRWORK_DW.obj_hw);
