@@ -264,7 +264,7 @@ class PacemakerInputs_template:
         try:
             while True:
                 await self.sendEKGRequest(start=True)
-                await asyncio.sleep(0.010)
+                await asyncio.sleep(0.0001)
         except asyncio.CancelledError:
             await self.sendEKGRequest(start=False)
             print("EKG request loop stopped")
