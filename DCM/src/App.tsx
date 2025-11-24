@@ -125,11 +125,23 @@ useEffect(() => {
         
         // Handle different message types
         if (data.type === 'ekg' || data.type === 'egm') {
-          // EKG/EGM data received - update state
-          setEkgData({
-            Atrial: data.Atrial,
-            Ventricular: data.Ventricular,
-            ECG: data.ECG
+          // EKG/EGM data received - accumulate data points instead of replacing
+          setEkgData((prevData) => {
+            const maxPoints = 10000; // Limit buffer size to prevent memory issues
+            
+            // Helper function to append new points and limit buffer size
+            const appendPoints = (prevArray: {x: number, y: number}[] | undefined, newPoints: {x: number, y: number}[] | undefined) => {
+              if (!newPoints || newPoints.length === 0) return prevArray;
+              const combined = [...(prevArray || []), ...newPoints];
+              // Keep only the most recent points if buffer gets too large
+              return combined.length > maxPoints ? combined.slice(-maxPoints) : combined;
+            };
+            
+            return {
+              Atrial: appendPoints(prevData?.Atrial, data.Atrial),
+              Ventricular: appendPoints(prevData?.Ventricular, data.Ventricular),
+              ECG: appendPoints(prevData?.ECG, data.ECG)
+            };
           });
         } else if (data.type === "CONNECTION_STATUS") {
           // Connection status updates from Python
@@ -499,6 +511,9 @@ useEffect(() => {
   };
 
   const handleStartEKG = () => {
+    // Reset EKG data when starting a new stream
+    setEkgData(null);
+    
     // Send EKG start request to Python backend
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const message = { type: "EKG_START_REQUEST" };
