@@ -24,6 +24,7 @@ class PacemakerInputs_template:
 
         self.serial_lock = asyncio.Lock()
         self.ekg_writer_task = None
+        self.ekg_start_time = None  # Track when EKG streaming started for relative timestamps
 
         self.waiting_for_device_info = False  # Flag to prevent other tasks from consuming device info response
         self.serialNum = 0
@@ -302,9 +303,14 @@ class PacemakerInputs_template:
 
     # waits for EKG data from pacemaker via serial
     async def awaitEKGData(self, websocket):
+        # Initialize start time for relative timestamps (milliseconds since stream start)
+        if self.ekg_start_time is None:
+            self.ekg_start_time = time.time()
+        
         while True: # infinte loop while streaming is active
             if not self.ser.is_open:
                 print("=== EKG LOOP ENDED: Serial port closed ===")
+                self.ekg_start_time = None  # Reset start time when stream ends
                 return
             try:
                 if self.ser.in_waiting >= 99:
@@ -315,19 +321,23 @@ class PacemakerInputs_template:
                         continue
                 
                     # Extract packet
-
                     self.atrDetect = struct.unpack('<f', packet[2:6])[0]
                     self.ventDetect  = struct.unpack('<f', packet[6:10])[0]
-                    self.timestamp = int(time.time()*1000)
                     
-                    # Send EKG data to frontend
+                    # Calculate relative timestamp in milliseconds since stream started
+                    current_time = time.time()
+                    if self.ekg_start_time is None:
+                        self.ekg_start_time = current_time
+                    relative_time_ms = (current_time - self.ekg_start_time) * 1000
+                    
+                    # Send EKG data to frontend with relative timestamp
                     ekg_data = {
                         "type": "ekg",
-                        "Atrial": [{"x": self.timestamp, "y": self.atrDetect}],
-                        "Ventricular": [{"x": self.timestamp, "y": self.ventDetect}]
+                        "Atrial": [{"x": relative_time_ms, "y": self.atrDetect}],
+                        "Ventricular": [{"x": relative_time_ms, "y": self.ventDetect}]
                     }
                     await websocket.send(json.dumps(ekg_data))
-                    print(f"EKG Data: Atrial={self.atrDetect:.2f}, Ventricular={self.ventDetect:.2f}, Time={self.timestamp:.2f}")
+                    print(f"EKG Data: Atrial={self.atrDetect:.2f}, Ventricular={self.ventDetect:.2f}, Time={relative_time_ms:.2f}ms")
                     
             except serial.SerialException as e:
                 print(f"Serial error: {e}")
@@ -550,6 +560,9 @@ async def handler(websocket):
                     print("Device disconnected, Wipe DCM state")
                 
                 elif msg_type == "EKG_START_REQUEST":
+                    # Reset start time when starting a new stream
+                    PacemakerInputs.ekg_start_time = None
+                    
                     if PacemakerInputs.ekg_writer_task is None or PacemakerInputs.ekg_writer_task.done():
                         PacemakerInputs.ekg_writer_task = asyncio.create_task(PacemakerInputs.ekg_request_loop())
 
@@ -565,6 +578,9 @@ async def handler(websocket):
                         }))
 
                 elif msg_type == "EKG_STOP_REQUEST":
+                    # Reset start time when stopping stream
+                    PacemakerInputs.ekg_start_time = None
+                    
                     if PacemakerInputs.ekg_writer_task:
                         PacemakerInputs.ekg_writer_task.cancel()
                         try:
