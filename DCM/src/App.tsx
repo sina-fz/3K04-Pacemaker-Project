@@ -486,6 +486,28 @@ useEffect(() => {
     }
   };
 
+  const handleStartEKG = () => {
+    // Send EKG start request to Python backend
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = { type: "EKG_START_REQUEST" };
+      wsRef.current.send(JSON.stringify(message));
+      console.log("Sent the start request to Python backend");
+    } else {
+      console.error("WebSocket not connected to Python backend");
+    }
+  };
+
+  const handleStopEKG = () => {
+    // Send EKG stop request to Python backend
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const message = { type: "EKG_STOP_REQUEST" };
+      wsRef.current.send(JSON.stringify(message));
+      console.log("Sent the stop request to Python backend");
+    } else {
+      console.error("WebSocket not connected to Python backend");
+    }
+  };
+
   const handleRetry = () => {
     handleConnect();
   };
@@ -728,6 +750,8 @@ useEffect(() => {
               <EKGViewer 
                 isDeviceConnected={telemetryState.connectionState === "Connected"}
                 channelData={ekgData || undefined}
+                onStartEKG={handleStartEKG}
+                onStopEKG={handleStopEKG}
               />
             )}
 

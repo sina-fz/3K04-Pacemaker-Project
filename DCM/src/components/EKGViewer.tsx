@@ -67,9 +67,11 @@ const markerColors = {
 interface EKGViewerProps {
   isDeviceConnected?: boolean;
   channelData?: ChannelData;
+  onStartEKG?: () => void;
+  onStopEKG?: () => void;
 }
 
-export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerProps) {
+export function EKGViewer({ isDeviceConnected = false, channelData, onStartEKG, onStopEKG }: EKGViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedChannels, setSelectedChannels] = useState(['Atrial', 'Ventricular']);
@@ -317,7 +319,17 @@ export function EKGViewer({ isDeviceConnected = false, channelData }: EKGViewerP
         <div className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
           <div className="flex items-center gap-4">
             <Button
-              onClick={() => setIsStreaming(!isStreaming)}
+              onClick={() => {
+                if (!isStreaming) {
+                  // Starting stream
+                  setIsStreaming(true);
+                  onStartEKG?.();
+                } else {
+                  // Stopping stream
+                  setIsStreaming(false);
+                  onStopEKG?.();
+                }
+              }}
               variant={isStreaming ? "default" : "outline"}
               className="flex items-center gap-2"
             >

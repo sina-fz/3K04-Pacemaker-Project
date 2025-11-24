@@ -271,9 +271,9 @@ class PacemakerInputs_template:
     # waits for EKG data from pacemaker via serial
     async def awaitEKGData(self, websocket):
         # print("=== EKG LOOP STARTED ===") #remove this later
-        loop_count = 0 #remove this later
+        # loop_count = 0 #remove this later
         while True: # infinte loop while streaming is active
-            loop_count += 1
+            # loop_count += 1
             # print(f"EKG Loop iteration: {loop_count}")
             
             if not self.ser.is_open:
@@ -281,7 +281,7 @@ class PacemakerInputs_template:
                 return
             try:
                 if self.ser.in_waiting >= 99:
-                    await asyncio.sleep(0.01)  
+                    await asyncio.sleep(0.01)
                     continue
                 if self.ser.in_waiting >= 18:
                     packet = self.ser.read(18)
@@ -590,8 +590,7 @@ async def handler(websocket):
                 elif msg_type == "EKG_STOP_REQUEST":
                     # Send EKG stop request to pacemaker
                     request_sent = PacemakerInputs.sendEKGRequest(start=False)
-                    
-                    # Cancel the EKG data receiving task
+
                     if ekg_task and not ekg_task.done():
                         ekg_task.cancel()
                         try:
