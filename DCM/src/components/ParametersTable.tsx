@@ -764,7 +764,7 @@ export function ParametersTable({
     return remainingTime > 0;
   };
 
-  // Helper function to validate AV delay with PVARP constraint
+  // Helper function to validate AV delay with PVARP constraint (LRL)
   const validateAVDelayWithPVARP = (
     lowerRateLimit: number | undefined,
     fixedAVDelay: number | undefined,
@@ -777,6 +777,24 @@ export function ParametersTable({
     }
     
     const cardiacCycleTime = 60000 / lowerRateLimit; 
+    const totalAVTime = fixedAVDelay + pvarp + atrialPulseWidth;
+    
+    return totalAVTime < cardiacCycleTime;
+  };
+
+  // Helper function to validate AV delay with PVARP constraint (MSR)
+  const validateAVDelayWithPVARPMSR = (
+    maximumSensorRate: number | undefined,
+    fixedAVDelay: number | undefined,
+    pvarp: number | undefined,
+    atrialPulseWidth: number | undefined
+  ): boolean => {
+    if (maximumSensorRate === undefined || fixedAVDelay === undefined || 
+        pvarp === undefined || atrialPulseWidth === undefined || maximumSensorRate === 0) {
+      return true; 
+    }
+    
+    const cardiacCycleTime = 60000 / maximumSensorRate; 
     const totalAVTime = fixedAVDelay + pvarp + atrialPulseWidth;
     
     return totalAVTime < cardiacCycleTime;
@@ -884,7 +902,7 @@ export function ParametersTable({
               }
             }
             
-            // AV Delay + PVARP constraint validation
+            // AV Delay + PVARP constraint validation (LRL)
             if (param.id === "lowerRateLimit" || param.id === "fixedAVDelay" || 
                 param.id === "pvarp" || param.id === "atrialPulseWidth") {
               const newLRL = param.id === "lowerRateLimit" ? numValue : currentLowerRate;
@@ -893,6 +911,19 @@ export function ParametersTable({
               const newAtrialPulseWidth = param.id === "atrialPulseWidth" ? numValue : currentAtrialPulseWidth;
               
               if (!validateAVDelayWithPVARP(newLRL, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
+                isValid = false;
+              }
+            }
+            
+            // AV Delay + PVARP constraint validation (MSR)
+            if (param.id === "maximumSensorRate" || param.id === "fixedAVDelay" || 
+                param.id === "pvarp" || param.id === "atrialPulseWidth") {
+              const newMSR = param.id === "maximumSensorRate" ? numValue : currentMSR;
+              const newFixedAVDelay = param.id === "fixedAVDelay" ? numValue : currentFixedAVDelay;
+              const newPVARP = param.id === "pvarp" ? numValue : currentPVARP;
+              const newAtrialPulseWidth = param.id === "atrialPulseWidth" ? numValue : currentAtrialPulseWidth;
+              
+              if (!validateAVDelayWithPVARPMSR(newMSR, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
                 isValid = false;
               }
             }
@@ -1053,7 +1084,7 @@ export function ParametersTable({
           }
         }
         
-        // Revalidate AV Delay + PVARP constraint when any related parameter changes
+        // Revalidate AV Delay + PVARP constraint when any related parameter changes (LRL)
         if (
           (id === "lowerRateLimit" || id === "fixedAVDelay" || id === "pvarp" || id === "atrialPulseWidth") &&
           (param.id === "lowerRateLimit" || param.id === "fixedAVDelay" || param.id === "pvarp" || param.id === "atrialPulseWidth")
@@ -1067,8 +1098,42 @@ export function ParametersTable({
           if (param.id !== id) {
             let isValid = param.isValid !== false; // preserve other validation
             
-            // Re-check AV Delay + PVARP constraint
+            // Re-check AV Delay + PVARP constraint (LRL)
             if (!validateAVDelayWithPVARP(newLRL, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
+              isValid = false;
+            } else {
+              // If constraint is valid, still check min/max constraints
+              if (param.min !== undefined && param.value < param.min) {
+                isValid = false;
+              }
+              if (param.max !== undefined && param.value > param.max) {
+                isValid = false;
+              }
+            }
+            
+            return {
+              ...param,
+              isValid,
+            };
+          }
+        }
+
+        // Revalidate AV Delay + PVARP constraint when any related parameter changes (MSR)
+        if (
+          (id === "maximumSensorRate" || id === "fixedAVDelay" || id === "pvarp" || id === "atrialPulseWidth") &&
+          (param.id === "maximumSensorRate" || param.id === "fixedAVDelay" || param.id === "pvarp" || param.id === "atrialPulseWidth")
+        ) {
+          const newMSR = id === "maximumSensorRate" ? value : (param.id === "maximumSensorRate" ? param.value : currentMSR);
+          const newFixedAVDelay = id === "fixedAVDelay" ? value : (param.id === "fixedAVDelay" ? param.value : currentFixedAVDelay);
+          const newPVARP = id === "pvarp" ? value : (param.id === "pvarp" ? param.value : currentPVARP);
+          const newAtrialPulseWidth = id === "atrialPulseWidth" ? value : (param.id === "atrialPulseWidth" ? param.value : currentAtrialPulseWidth);
+          
+          // Only revalidate if this parameter wasn't the one being changed (to avoid double validation)
+          if (param.id !== id) {
+            let isValid = param.isValid !== false; // preserve other validation
+            
+            // Re-check AV Delay + PVARP constraint (MSR)
+            if (!validateAVDelayWithPVARPMSR(newMSR, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
               isValid = false;
             } else {
               // If constraint is valid, still check min/max constraints
@@ -1653,6 +1718,20 @@ export function ParametersTable({
           atrialPulseWidth?.isValid === false
         );
         
+        const avDelayPVARPMSRInvalid = !validateAVDelayWithPVARPMSR(
+          maximumSensorRate?.value,
+          fixedAVDelay?.value,
+          pvarp?.value,
+          atrialPulseWidth?.value
+        );
+        
+        const hasAVDelayPVARPMSRError = avDelayPVARPMSRInvalid && (
+          maximumSensorRate?.isValid === false ||
+          fixedAVDelay?.isValid === false ||
+          pvarp?.isValid === false ||
+          atrialPulseWidth?.isValid === false
+        );
+        
         const hasMSRError = (
           maximumSensorRate?.isValid === false ||
           (lowerRateLimit?.isValid === false && lowerRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && lowerRateLimit.value >= maximumSensorRate.value)
@@ -1674,7 +1753,13 @@ export function ParametersTable({
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {hasAVDelayPVARPError ? (
+              {hasAVDelayPVARPMSRError ? (
+                <>
+                  <strong>AV Delay + PVARP + MSR Constraint Error:</strong> The sum of Fixed AV Delay + PVARP + Atrial Pulse Width must be less than the cardiac cycle time at Maximum Sensor Rate (60000 ms / MSR). 
+                  Current constraint: {fixedAVDelay?.value} + {pvarp?.value} + {atrialPulseWidth?.value} = {(fixedAVDelay?.value || 0) + (pvarp?.value || 0) + (atrialPulseWidth?.value || 0)} ms must be &lt; {maximumSensorRate?.value ? (60000 / maximumSensorRate.value).toFixed(1) : 'N/A'} ms. 
+                  Please adjust Fixed AV Delay, PVARP, Atrial Pulse Width, or Maximum Sensor Rate.
+                </>
+              ) : hasAVDelayPVARPError ? (
                 <>
                   <strong>AV Delay + PVARP Constraint Error:</strong> The sum of Fixed AV Delay + PVARP + Atrial Pulse Width must be less than the cardiac cycle time (60000 ms / LRL). 
                   Current constraint: {fixedAVDelay?.value} + {pvarp?.value} + {atrialPulseWidth?.value} = {(fixedAVDelay?.value || 0) + (pvarp?.value || 0) + (atrialPulseWidth?.value || 0)} ms must be &lt; {lowerRateLimit?.value ? (60000 / lowerRateLimit.value).toFixed(1) : 'N/A'} ms. 
