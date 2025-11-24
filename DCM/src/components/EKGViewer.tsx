@@ -248,9 +248,8 @@ export function EKGViewer({ isDeviceConnected = false, channelData, onStartEKG, 
             // Apply time scale and scroll offset
             const x = (point.x * timeScale[0]) - scrollOffset;
             
-            // Apply both master gain and channel-specific gain with a base scaling multiplier
-            const baseScale = 50; 
-            const y = yOffset - (point.y * gain[0] * channelGain * baseScale);
+            // Apply both master gain and channel-specific gain
+            const y = yOffset - (point.y * gain[0] * 100*channelGain);
             
             // Only draw points that are visible on the canvas
             if (x >= 0 && x <= displayWidth) {

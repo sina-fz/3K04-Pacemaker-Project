@@ -820,17 +820,9 @@ export function ParametersTable({
               }
             }
             
-            // MSR must be greater than URL and LRL
+            // MSR must be greater than LRL (but not necessarily greater than URL)
             if (param.id === "maximumSensorRate") {
-              if (currentUpperRate !== undefined && numValue <= currentUpperRate) {
-                isValid = false;
-              }
               if (currentLowerRate !== undefined && numValue <= currentLowerRate) {
-                isValid = false;
-              }
-            } else if (param.id === "upperRateLimit" && currentMSR !== undefined) {
-              // URL must be less than MSR
-              if (numValue >= currentMSR) {
                 isValid = false;
               }
             } else if (param.id === "lowerRateLimit" && currentMSR !== undefined) {
@@ -956,19 +948,12 @@ export function ParametersTable({
           if (param.id !== id) {
             let isValid = param.isValid !== false; // preserve other validation
             
-            // MSR must be greater than URL and LRL
+            // MSR must be greater than LRL (but not necessarily greater than URL)
             if (param.id === "maximumSensorRate") {
-              if (newURL !== undefined && newMSR !== undefined && newMSR <= newURL) {
-                isValid = false;
-              }
               if (newLRL !== undefined && newMSR !== undefined && newMSR <= newLRL) {
                 isValid = false;
               }
             } else if (param.id === "upperRateLimit") {
-              // URL must be less than MSR
-              if (newMSR !== undefined && newURL !== undefined && newURL >= newMSR) {
-                isValid = false;
-              }
               // URL must still be >= LRL (existing constraint)
               if (newLRL !== undefined && newURL !== undefined && newURL < newLRL) {
                 isValid = false;
@@ -1532,7 +1517,6 @@ export function ParametersTable({
         
         const hasMSRError = (
           maximumSensorRate?.isValid === false ||
-          (upperRateLimit?.isValid === false && upperRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && upperRateLimit.value >= maximumSensorRate.value) ||
           (lowerRateLimit?.isValid === false && lowerRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && lowerRateLimit.value >= maximumSensorRate.value)
         );
         
