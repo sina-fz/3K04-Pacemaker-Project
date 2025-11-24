@@ -13,7 +13,7 @@ device_connected = {}  # Track connection state per websocket
 
 class PacemakerInputs_template:
     def __init__(self):
-        self.port = "COM8" #CHANGE TO COM3
+        self.port = "COM4" #CHANGE TO COM3
         self.baudrate = 115200
         self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
         #self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1) # for testing
@@ -142,17 +142,23 @@ class PacemakerInputs_template:
             else:
                 packet.extend(struct.pack('<B', 1)) #byte 99
             
-            # packet.extend(struct.pack('<f', float(self.atrialAmplitudeRegulated))) # bytes 100-103
-            # packet.extend(struct.pack('<f', float(self.ventricularAmplitudeRegulated))) # bytes 104-107
+            packet.extend(struct.pack('<f', float(self.atrialAmplitudeRegulated))) # bytes 100-103
+            packet.extend(struct.pack('<f', float(self.ventricularAmplitudeRegulated))) # bytes 104-107
 
-            # packet.extend(struct.pack('<I', float(self.fixedAVDelay))) # bytes 108-111
+            packet.extend(struct.pack('<I', int(self.fixedAVDelay))) # bytes 108-111
 
-            # packet.extend(struct.pack('<B', int(self.dynamicAVDelay))) # bytes 112
+            packet.extend(struct.pack('<B', int(self.dynamicAVDelay))) # bytes 112
             
-            # packet.extend(struct.pack('<b', int(self.sensedAVDelayOffset))) # bytes 113
+            packet.extend(struct.pack('<b', int(self.sensedAVDelayOffset))) # bytes 113
 
-            # packet.extend(struct.pack('<I', int(self.pvarpExtension))) # bytes 108-111
- 
+            packet.extend(struct.pack('<I', int(self.pvarpExtension))) # bytes 114-117
+
+            packet.extend(struct.pack('<I', int(self.atrDuration))) # bytes 118-121
+
+            packet.extend(struct.pack('<B', int(self.atrFallbackTime))) # bytes 122
+            packet.extend(struct.pack('<B', int(self.atrMode))) # bytes 123
+            packet.extend(struct.pack('<B', int(self.ventricularBlanking))) # bytes 124
+            packet.extend(struct.pack('<B', int(self.minimumDynamicAVDelay))) # bytes 125
 
             self.ser.write(packet)
             self.ser.flush()
@@ -192,7 +198,7 @@ class PacemakerInputs_template:
             self.waiting_for_device_info = True
             
             # start of packet (request handhshake)
-            packet = bytearray(99)
+            packet = bytearray(125)
             packet[0] = 0x16  # SYNC byte 1
             packet[1] = 0x45  # Function code byte 2
             packet[2] = 1 # Flag enable for serial handshake byte 3
@@ -234,7 +240,7 @@ class PacemakerInputs_template:
             self.waiting_for_parameters = True
             
             # start of packet (request for board parameters)
-            packet = bytearray(99)
+            packet = bytearray(125)
             packet[0] = 0x16  # SYNC byte 1
             packet[1] = 0x60  # Function code byte 2
             packet[2] = 1 # Flag enable for serial handshake byte 3
@@ -270,9 +276,9 @@ class PacemakerInputs_template:
                 return None
             try:
                 in_waiting = self.ser.in_waiting
-                if in_waiting >= 99:
+                if in_waiting >= 125:
                     print(f"Found {in_waiting} bytes waiting, reading parameter load response...")
-                    response_packet = self.ser.read(99)
+                    response_packet = self.ser.read(125)
                     
                     # Check header bytes for parameter load response
                     if not(response_packet[0] == 0x16 and response_packet[1] == 0x44):
@@ -309,7 +315,23 @@ class PacemakerInputs_template:
                     loaded_responseFactor              = struct.unpack('<I', response_packet[86:90])[0]
                     loaded_recoveryTime                = struct.unpack('<I', response_packet[90:94])[0]
                     loaded_maximumSensorRate           = struct.unpack('<I', response_packet[94:98])[0]
-                    
+
+                    loaded_atrialAmplitudeRegulated       = struct.unpack('<f', response_packet[99:103])[0]
+                    loaded_ventricularAmplitudeRegulated  = struct.unpack('<f', response_packet[103:107])[0]
+ 
+                    loaded_fixedAVDelay           = struct.unpack('<I', response_packet[107:111])[0]
+
+                    loaded_dynamicAVDelay         = struct.unpack('<B', response_packet[111:112])[0]
+                    loaded_sensedAVDelayOffset    = struct.unpack('<b', response_packet[112:113])[0]
+
+                    loaded_pvarpExtension         = struct.unpack('<I', response_packet[113:117])[0]
+                    loaded_atrDuration         = struct.unpack('<I', response_packet[117:121])[0]
+
+                    loaded_atrFallbackTime         = struct.unpack('<B', response_packet[121:122])[0]
+                    loaded_atrMode         = struct.unpack('<B', response_packet[122:123])[0]
+                    loaded_ventricularBlanking         = struct.unpack('<B', response_packet[123:124])[0]
+                    loaded_minimumDynamicAVDelay         = struct.unpack('<B', response_packet[124:125])[0]
+
                     # Convert mode code back to string if needed
                     reverse_mode_dict = {v: k for k, v in self.modedict.items()}
                     mode_string = reverse_mode_dict.get(loaded_mode, "UNKNOWN")
@@ -319,27 +341,50 @@ class PacemakerInputs_template:
                     
                     # Send loaded parameters to frontend
                     loaded_parameters = {
-                        "type": "BOARD_PARAMETERS_LOADED",
-                        "mode": mode_string,
-                        "upperRateLimit": loaded_upperRateLimit,
-                        "lowerRateLimit": loaded_lowerRateLimit,
-                        "atrialAmplitudeUnregulated": loaded_atrialAmplitudeUnregulated,
-                        "atrialPulseWidth": loaded_atrialPulseWidth,
-                        "ventricularAmplitudeUnregulated": loaded_ventricularAmplitudeUnregulated,
-                        "ventricularPulseWidth": loaded_ventricularPulseWidth,
-                        "atrialRefractoryPeriod": loaded_atrialRefractoryPeriod,
-                        "pvarp": loaded_pvarp,
-                        "hysteresisRateLimit": loaded_hysteresisRateLimit,
-                        "rateSmoothing": loaded_rateSmoothing_up,  # Use up value
-                        "atrialSensitivity": loaded_atrialSensitivity,
-                        "ventricularSensitivity": loaded_ventricularSensitivity,
-                        "ventricularRefractoryPeriod": loaded_ventricularRefractoryPeriod,
-                        "activityThreshold": loaded_activityThreshold,
-                        "reactionTime": loaded_reactionTime,
-                        "responseFactor": loaded_responseFactor,
-                        "recoveryTime": loaded_recoveryTime,
-                        "maximumSensorRate": loaded_maximumSensorRate
+                      "type": "BOARD_PARAMETERS_LOADED",
+                      "mode": mode_string,
+                      "upperRateLimit": loaded_upperRateLimit,
+                      "lowerRateLimit": loaded_lowerRateLimit,
+                    
+                      "atrialAmplitudeUnregulated": loaded_atrialAmplitudeUnregulated,
+                      "atrialPulseWidth": loaded_atrialPulseWidth,
+                      "ventricularAmplitudeUnregulated": loaded_ventricularAmplitudeUnregulated,
+                      "ventricularPulseWidth": loaded_ventricularPulseWidth,
+                    
+                      "atrialRefractoryPeriod": loaded_atrialRefractoryPeriod,
+                      "pvarp": loaded_pvarp,
+                      "hysteresisRateLimit": loaded_hysteresisRateLimit,
+                    
+                      "rateSmoothingUp": loaded_rateSmoothing_up,
+                      "rateSmoothingDown": loaded_rateSmoothing_down,
+                    
+                      "atrialSensitivity": loaded_atrialSensitivity,
+                      "ventricularSensitivity": loaded_ventricularSensitivity,
+                    
+                      "ventricularRefractoryPeriod": loaded_ventricularRefractoryPeriod,
+                      "activityThreshold": loaded_activityThreshold,
+                      "reactionTime": loaded_reactionTime,
+                      "responseFactor": loaded_responseFactor,
+                      "recoveryTime": loaded_recoveryTime,
+                      "maximumSensorRate": loaded_maximumSensorRate,
+                    
+                      "atrialAmplitudeRegulated": loaded_atrialAmplitudeRegulated,
+                      "ventricularAmplitudeRegulated": loaded_ventricularAmplitudeRegulated,
+                    
+                      "fixedAVDelay": loaded_fixedAVDelay,
+                      "dynamicAVDelay": loaded_dynamicAVDelay,
+                      "sensedAVDelayOffset": loaded_sensedAVDelayOffset,
+                    
+                      "pvarpExtension": loaded_pvarpExtension,
+                      "atrDuration": loaded_atrDuration,
+                    
+                      "atrFallbackTime": loaded_atrFallbackTime,
+                      "atrMode": loaded_atrMode,
+                      "ventricularBlanking": loaded_ventricularBlanking,
+                      "minimumDynamicAVDelay": loaded_minimumDynamicAVDelay
                     }
+                    print(loaded_parameters)
+
                     await websocket.send(json.dumps(loaded_parameters))
                     return loaded_parameters
                         
@@ -371,10 +416,10 @@ class PacemakerInputs_template:
                 return None
             try:
                 in_waiting = self.ser.in_waiting
-                if in_waiting >= 99:
+                if in_waiting >= 125:
                     print(f"Found {in_waiting} bytes waiting, reading device info response...")
-                    response_packet = self.ser.read(99)
-                    
+                    response_packet = self.ser.read(125)
+
                     # Check header bytes for device info response (await handshake)
                     if not(response_packet[0] == 0x16 and response_packet[1] == 0x29):
                         # invalid packet, but port still active, keep looping
@@ -431,7 +476,7 @@ class PacemakerInputs_template:
     async def sendEKGRequest(self, start=True):
         async with self.serial_lock:
             try:
-                packet = bytearray(99)
+                packet = bytearray(125)
                 packet[0] = 0x16
                 packet[1] = 0x36
                 packet[2] = 1 if start else 0
@@ -458,8 +503,8 @@ class PacemakerInputs_template:
                 self.ekg_start_time = None  # Reset start time when stream ends
                 return
             try:
-                if self.ser.in_waiting >= 99:
-                    packet = self.ser.read(99)
+                if self.ser.in_waiting >= 125:
+                    packet = self.ser.read(125)
                     # Check header bytes for EKG data
                     if not(packet[0] == 0x16 and packet[1] == 0x20):
                         await asyncio.sleep(0.0001)
@@ -504,8 +549,8 @@ class PacemakerInputs_template:
                     continue
                 
                 # Wait for 99-byte echo packet (same size as sent packet)
-                if self.ser.in_waiting >= 99:
-                    packet = self.ser.read(99)
+                if self.ser.in_waiting >= 125:
+                    packet = self.ser.read(125)
                     # Check header bytes for echo packet
                     if not (packet[0] == 0x16 and packet[1] == 0x39):
                         await asyncio.sleep(0.0001)
@@ -539,11 +584,30 @@ class PacemakerInputs_template:
                     echoed_responseFactor              = struct.unpack('<I', packet[86:90])[0]
                     echoed_recoveryTime                = struct.unpack('<I', packet[90:94])[0]
                     echoed_maximumSensorRate           = struct.unpack('<I', packet[94:98])[0]
-                    
+
+                    echoed_atrialAmplitudeRegulated       = struct.unpack('<f', packet[98:102])[0]
+                    echoed_ventricularAmplitudeRegulated  = struct.unpack('<f', packet[102:106])[0]
+
+                    echoed_fixedAVDelay           = struct.unpack('<I', packet[106:110])[0]
+
+                    echoed_dynamicAVDelay         = struct.unpack('<B', packet[110:111])[0]
+                    echoed_sensedAVDelayOffset    = struct.unpack('<b', packet[111:112])[0]
+
+                    echoed_pvarpExtension         = struct.unpack('<I', packet[112:116])[0]
+                    echoed_atrDuration            = struct.unpack('<I', packet[116:120])[0]
+
+                    echoed_atrFallbackTime        = struct.unpack('<B', packet[120:121])[0]
+                    echoed_atrMode                = struct.unpack('<B', packet[121:122])[0]
+                    echoed_ventricularBlanking    = struct.unpack('<B', packet[122:123])[0]
+                    echoed_minimumDynamicAVDelay  = struct.unpack('<B', packet[123:124])[0]
+
+
                     verification_result = self.verifyParameters(echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit, echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth, 
                                                                 echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,echoed_atrialRefractoryPeriod,echoed_pvarp,echoed_hysteresisRateLimit,
                                                                 echoed_rateSmoothing_up, echoed_rateSmoothing_down, echoed_atrialSensitivity, echoed_ventricularSensitivity, echoed_ventricularRefractoryPeriod,
-                                                                echoed_activityThreshold, echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime, echoed_maximumSensorRate)
+                                                                echoed_activityThreshold, echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime, echoed_maximumSensorRate,
+                                                                echoed_atrialAmplitudeRegulated, echoed_ventricularAmplitudeRegulated, echoed_fixedAVDelay, echoed_dynamicAVDelay, echoed_sensedAVDelayOffset,
+                                                                echoed_pvarpExtension, echoed_atrDuration, echoed_atrFallbackTime, echoed_atrMode, echoed_ventricularBlanking, echoed_minimumDynamicAVDelay)
                     verification_result = True # assume true before unpacking just for testing (will implement line above after unpacking)
                     if verification_result:
                         print("Parameters verified successfully")
@@ -572,30 +636,58 @@ class PacemakerInputs_template:
             await asyncio.sleep(0.01)
 
     def verifyParameters(self, echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit,
-                        echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth,
-                        echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,
-                        echoed_atrialRefractoryPeriod, echoed_pvarp, echoed_hysteresisRateLimit,
-                        echoed_rateSmoothing_up, echoed_rateSmoothing_down, echoed_atrialSensitivity, echoed_ventricularSensitivity,
-                        echoed_ventricularRefractoryPeriod, echoed_activityThreshold,
-                        echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime,
-                        echoed_maximumSensorRate):
-        
-        # Compare sent and received values
-        # return False on first mismatch of parameter values
+                    echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth,
+                    echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,
+                    echoed_atrialRefractoryPeriod, echoed_pvarp, echoed_hysteresisRateLimit,
+                    echoed_rateSmoothing_up, echoed_rateSmoothing_down, echoed_atrialSensitivity, echoed_ventricularSensitivity,
+                    echoed_ventricularRefractoryPeriod, echoed_activityThreshold,
+                    echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime,
+                    echoed_maximumSensorRate, echoed_atrialAmplitudeRegulated, echoed_ventricularAmplitudeRegulated, echoed_fixedAVDelay, 
+                    echoed_dynamicAVDelay, echoed_sensedAVDelayOffset, echoed_pvarpExtension, echoed_atrDuration,
+                    echoed_atrFallbackTime, echoed_atrMode, echoed_ventricularBlanking, echoed_minimumDynamicAVDelay):
+
         if echoed_mode != self.mode:
             return False
         elif echoed_upperRateLimit != self.upperRateLimit:
             return False
         elif echoed_lowerRateLimit != self.lowerRateLimit:
             return False
+
+        # Amplitudes + Pulse widths
+        elif echoed_atrialAmplitudeUnregulated != self.atrialAmplitudeUnregulated:
+            return False
+        elif echoed_atrialPulseWidth != self.atrialPulseWidth:
+            return False
+        elif echoed_ventricularAmplitudeUnregulated != self.ventricularAmplitudeUnregulated:
+            return False
+        elif echoed_ventricularPulseWidth != self.ventricularPulseWidth:
+            return False
+
+        # Refractory periods / timing
         elif echoed_atrialRefractoryPeriod != self.atrialRefractoryPeriod:
             return False
         elif echoed_pvarp != self.pvarp:
             return False
         elif echoed_hysteresisRateLimit != self.hysteresisRateLimit:
             return False
+
+        # Rate smoothing
+        elif echoed_rateSmoothing_up != self.rateSmoothing:
+            return False
+        elif echoed_rateSmoothing_down != self.rateSmoothing:
+            return False
+
+        # Sensitivity
+        # elif echoed_atrialSensitivity != self.atrialSensitivity:
+            # return False
+        # elif echoed_ventricularSensitivity != self.ventricularSensitivity:
+            # return False
+
+        # Ventricular refractory period
         elif echoed_ventricularRefractoryPeriod != self.ventricularRefractoryPeriod:
             return False
+
+        # Sensor parameters
         elif echoed_activityThreshold != self.activityThreshold:
             return False
         elif echoed_reactionTime != self.reactionTime:
@@ -606,23 +698,39 @@ class PacemakerInputs_template:
             return False
         elif echoed_maximumSensorRate != self.maximumSensorRate:
             return False
-        elif echoed_atrialAmplitudeUnregulated != self.atrialAmplitudeUnregulated:
+
+        # Regulated amplitudes
+        elif echoed_atrialAmplitudeRegulated != self.atrialAmplitudeRegulated:
             return False
-        elif echoed_atrialPulseWidth != self.atrialPulseWidth:
+        elif echoed_ventricularAmplitudeRegulated != self.ventricularAmplitudeRegulated:
             return False
-        elif echoed_ventricularAmplitudeUnregulated != self.ventricularAmplitudeUnregulated:
+
+        # AV delay parameters
+        elif echoed_fixedAVDelay != self.fixedAVDelay:
             return False
-        elif echoed_ventricularPulseWidth != self.ventricularPulseWidth:
+        elif echoed_dynamicAVDelay != self.dynamicAVDelay:
             return False
-        elif echoed_rateSmoothing_up != self.rateSmoothing:
+        elif echoed_sensedAVDelayOffset != self.sensedAVDelayOffset:
             return False
-        elif echoed_rateSmoothing_down != self.rateSmoothing:
+
+        # PVARP extension + ATR settings
+        elif echoed_pvarpExtension != self.pvarpExtension:
             return False
-        # elif echoed_atrialSensitivity != self.atrialSensitivity:
-            # return False
-        # elif echoed_ventricularSensitivity != self.ventricularSensitivity:
-            # return False
+        elif echoed_atrDuration != self.atrDuration:
+            return False
+        elif echoed_atrFallbackTime != self.atrFallbackTime:
+            return False
+        elif echoed_atrMode != self.atrMode:
+            return False
+
+        # Blanking & minimum dynamic AV delay
+        elif echoed_ventricularBlanking != self.ventricularBlanking:
+            return False
+        elif echoed_minimumDynamicAVDelay != self.minimumDynamicAVDelay:
+            return False
+
         return True
+
 
     def close(self):
         if hasattr(self, 'ser') and self.ser.is_open:
