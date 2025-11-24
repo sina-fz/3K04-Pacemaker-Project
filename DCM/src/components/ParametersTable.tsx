@@ -743,12 +743,49 @@ export function ParametersTable({
     "DDDR",
   ];
 
+  // Helper function to validate cardiac cycle time
+  // Ensures: 60000 - (ARP + AtrialPulseWidth) * LRL > 0
+  // This guarantees enough time for one full cardiac cycle at the programmed LRL
+  const validateCardiacCycleTime = (
+    lowerRateLimit: number | undefined,
+    atrialRefractoryPeriod: number | undefined,
+    atrialPulseWidth: number | undefined
+  ): boolean => {
+    if (lowerRateLimit === undefined || atrialRefractoryPeriod === undefined || atrialPulseWidth === undefined) {
+      return true; // Can't validate if values are missing
+    }
+    
+    const timePerMinute = 60000; // milliseconds in a minute
+    const totalRefractoryTime = (atrialRefractoryPeriod + atrialPulseWidth) * lowerRateLimit;
+    const remainingTime = timePerMinute - totalRefractoryTime;
+    
+    return remainingTime > 0;
+  };
+
+  // Helper function to calculate Sensed AV Delay
+  // Sensed AV Delay = Fixed AV Delay + Sensed AV Delay Offset
+  const calculateSensedAVDelay = (
+    fixedAVDelay: number | undefined,
+    sensedAVDelayOffset: number | undefined
+  ): number | undefined => {
+    if (fixedAVDelay === undefined || sensedAVDelayOffset === undefined) {
+      return undefined;
+    }
+    return fixedAVDelay + sensedAVDelayOffset;
+  };
+
   // Update parameter value and validity
   const updateParameter = (id: string, value: number) => {
     setParameters((prev) => {
       // Get current rate limits for cross-validation
       const currentLowerRate = prev.find((p) => p.id === "lowerRateLimit")?.value;
       const currentUpperRate = prev.find((p) => p.id === "upperRateLimit")?.value;
+      const currentMSR = prev.find((p) => p.id === "maximumSensorRate")?.value;
+      const currentARP = prev.find((p) => p.id === "atrialRefractoryPeriod")?.value;
+      const currentAtrialPulseWidth = prev.find((p) => p.id === "atrialPulseWidth")?.value;
+      const currentFixedAVDelay = prev.find((p) => p.id === "fixedAVDelay")?.value;
+      const currentMinimumDynamicAVDelay = prev.find((p) => p.id === "minimumDynamicAVDelay")?.value;
+      const currentSensedAVDelayOffset = prev.find((p) => p.id === "sensedAVDelayOffset")?.value;
 
       const updatedParams = prev.map((param) => {
         if (param.id === id) {
@@ -777,6 +814,73 @@ export function ParametersTable({
               }
             } else if (param.id === "upperRateLimit" && currentLowerRate !== undefined) {
               if (numValue < currentLowerRate) {
+                isValid = false;
+              }
+            }
+            
+            // MSR must be greater than URL and LRL
+            if (param.id === "maximumSensorRate") {
+              if (currentUpperRate !== undefined && numValue <= currentUpperRate) {
+                isValid = false;
+              }
+              if (currentLowerRate !== undefined && numValue <= currentLowerRate) {
+                isValid = false;
+              }
+            } else if (param.id === "upperRateLimit" && currentMSR !== undefined) {
+              // URL must be less than MSR
+              if (numValue >= currentMSR) {
+                isValid = false;
+              }
+            } else if (param.id === "lowerRateLimit" && currentMSR !== undefined) {
+              // LRL must be less than MSR
+              if (numValue >= currentMSR) {
+                isValid = false;
+              }
+            }
+            
+            // Cardiac cycle time validation
+            // Check if changing LRL, ARP, or AtrialPulseWidth violates cycle time constraint
+            if (param.id === "lowerRateLimit" || param.id === "atrialRefractoryPeriod" || param.id === "atrialPulseWidth") {
+              const newLRL = param.id === "lowerRateLimit" ? numValue : currentLowerRate;
+              const newARP = param.id === "atrialRefractoryPeriod" ? numValue : currentARP;
+              const newAtrialPulseWidth = param.id === "atrialPulseWidth" ? numValue : currentAtrialPulseWidth;
+              
+              if (!validateCardiacCycleTime(newLRL, newARP, newAtrialPulseWidth)) {
+                isValid = false;
+              }
+            }
+            
+            // AV Delay validation constraints
+            // 1. Minimum Dynamic AV Delay ≤ Fixed AV Delay
+            // 2. Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed = FixedAV + Offset)
+            if (param.id === "minimumDynamicAVDelay") {
+              // Constraint 1: Minimum Dynamic AV Delay ≤ Fixed AV Delay
+              if (currentFixedAVDelay !== undefined && numValue > currentFixedAVDelay) {
+                isValid = false;
+              }
+              
+              // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay
+              const sensedAVDelay = calculateSensedAVDelay(currentFixedAVDelay, currentSensedAVDelayOffset);
+              if (sensedAVDelay !== undefined && numValue > sensedAVDelay) {
+                isValid = false;
+              }
+            } else if (param.id === "fixedAVDelay") {
+              // When Fixed AV Delay changes, check both constraints
+              // Constraint 1: Minimum Dynamic AV Delay ≤ Fixed AV Delay
+              if (currentMinimumDynamicAVDelay !== undefined && currentMinimumDynamicAVDelay > numValue) {
+                isValid = false;
+              }
+              
+              // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay
+              const sensedAVDelay = calculateSensedAVDelay(numValue, currentSensedAVDelayOffset);
+              if (sensedAVDelay !== undefined && currentMinimumDynamicAVDelay !== undefined && currentMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+            } else if (param.id === "sensedAVDelayOffset") {
+              // When Sensed AV Delay Offset changes, check constraint 2
+              // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay
+              const sensedAVDelay = calculateSensedAVDelay(currentFixedAVDelay, numValue);
+              if (sensedAVDelay !== undefined && currentMinimumDynamicAVDelay !== undefined && currentMinimumDynamicAVDelay > sensedAVDelay) {
                 isValid = false;
               }
             }
@@ -835,6 +939,147 @@ export function ParametersTable({
             ...param,
             isValid,
           };
+        }
+        
+        // Revalidate MSR, URL, and LRL relationships when any of them changes
+        if (
+          (id === "maximumSensorRate" || id === "upperRateLimit" || id === "lowerRateLimit") &&
+          (param.id === "maximumSensorRate" || param.id === "upperRateLimit" || param.id === "lowerRateLimit")
+        ) {
+          const newMSR = id === "maximumSensorRate" ? value : (param.id === "maximumSensorRate" ? param.value : currentMSR);
+          const newURL = id === "upperRateLimit" ? value : (param.id === "upperRateLimit" ? param.value : currentUpperRate);
+          const newLRL = id === "lowerRateLimit" ? value : (param.id === "lowerRateLimit" ? param.value : currentLowerRate);
+          
+          // Only revalidate if this parameter wasn't the one being changed (to avoid double validation)
+          if (param.id !== id) {
+            let isValid = param.isValid !== false; // preserve other validation
+            
+            // MSR must be greater than URL and LRL
+            if (param.id === "maximumSensorRate") {
+              if (newURL !== undefined && newMSR !== undefined && newMSR <= newURL) {
+                isValid = false;
+              }
+              if (newLRL !== undefined && newMSR !== undefined && newMSR <= newLRL) {
+                isValid = false;
+              }
+            } else if (param.id === "upperRateLimit") {
+              // URL must be less than MSR
+              if (newMSR !== undefined && newURL !== undefined && newURL >= newMSR) {
+                isValid = false;
+              }
+              // URL must still be >= LRL (existing constraint)
+              if (newLRL !== undefined && newURL !== undefined && newURL < newLRL) {
+                isValid = false;
+              }
+            } else if (param.id === "lowerRateLimit") {
+              // LRL must be less than MSR
+              if (newMSR !== undefined && newLRL !== undefined && newLRL >= newMSR) {
+                isValid = false;
+              }
+              // LRL must still be <= URL (existing constraint)
+              if (newURL !== undefined && newLRL !== undefined && newLRL > newURL) {
+                isValid = false;
+              }
+            }
+            
+            // Still check min/max constraints
+            if (param.min !== undefined && param.value < param.min) {
+              isValid = false;
+            }
+            if (param.max !== undefined && param.value > param.max) {
+              isValid = false;
+            }
+            
+            return {
+              ...param,
+              isValid,
+            };
+          }
+        }
+        
+        // Revalidate AV Delay relationships when any of them changes
+        if (
+          (id === "minimumDynamicAVDelay" || id === "fixedAVDelay" || id === "sensedAVDelayOffset") &&
+          (param.id === "minimumDynamicAVDelay" || param.id === "fixedAVDelay" || param.id === "sensedAVDelayOffset")
+        ) {
+          const newMinimumDynamicAVDelay = id === "minimumDynamicAVDelay" ? value : (param.id === "minimumDynamicAVDelay" ? param.value : currentMinimumDynamicAVDelay);
+          const newFixedAVDelay = id === "fixedAVDelay" ? value : (param.id === "fixedAVDelay" ? param.value : currentFixedAVDelay);
+          const newSensedAVDelayOffset = id === "sensedAVDelayOffset" ? value : (param.id === "sensedAVDelayOffset" ? param.value : currentSensedAVDelayOffset);
+          
+          // Only revalidate if this parameter wasn't the one being changed (to avoid double validation)
+          if (param.id !== id) {
+            let isValid = param.isValid !== false; // preserve other validation
+            
+            const sensedAVDelay = calculateSensedAVDelay(newFixedAVDelay, newSensedAVDelayOffset);
+            
+            // Constraint 1: Minimum Dynamic AV Delay ≤ Fixed AV Delay
+            // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed = FixedAV + Offset)
+            if (param.id === "minimumDynamicAVDelay") {
+              if (newFixedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > newFixedAVDelay) {
+                isValid = false;
+              }
+              if (sensedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+            } else if (param.id === "fixedAVDelay") {
+              if (newMinimumDynamicAVDelay !== undefined && newFixedAVDelay !== undefined && newMinimumDynamicAVDelay > newFixedAVDelay) {
+                isValid = false;
+              }
+              if (sensedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+            } else if (param.id === "sensedAVDelayOffset") {
+              if (sensedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+            }
+            
+            // Still check min/max constraints
+            if (param.min !== undefined && param.value < param.min) {
+              isValid = false;
+            }
+            if (param.max !== undefined && param.value > param.max) {
+              isValid = false;
+            }
+            
+            return {
+              ...param,
+              isValid,
+            };
+          }
+        }
+        
+        // Revalidate cardiac cycle time when LRL, ARP, or AtrialPulseWidth changes
+        if (
+          (id === "lowerRateLimit" || id === "atrialRefractoryPeriod" || id === "atrialPulseWidth") &&
+          (param.id === "lowerRateLimit" || param.id === "atrialRefractoryPeriod" || param.id === "atrialPulseWidth")
+        ) {
+          const newLRL = id === "lowerRateLimit" ? value : (param.id === "lowerRateLimit" ? param.value : currentLowerRate);
+          const newARP = id === "atrialRefractoryPeriod" ? value : (param.id === "atrialRefractoryPeriod" ? param.value : currentARP);
+          const newAtrialPulseWidth = id === "atrialPulseWidth" ? value : (param.id === "atrialPulseWidth" ? param.value : currentAtrialPulseWidth);
+          
+          // Only revalidate if this parameter wasn't the one being changed (to avoid double validation)
+          if (param.id !== id) {
+            let isValid = param.isValid !== false; // preserve other validation
+            
+            // Re-check cardiac cycle time constraint
+            if (!validateCardiacCycleTime(newLRL, newARP, newAtrialPulseWidth)) {
+              isValid = false;
+            } else {
+              // If cardiac cycle is valid, still check min/max constraints
+              if (param.min !== undefined && param.value < param.min) {
+                isValid = false;
+              }
+              if (param.max !== undefined && param.value > param.max) {
+                isValid = false;
+              }
+            }
+            
+            return {
+              ...param,
+              isValid,
+            };
+          }
         }
         
         return param;
@@ -1255,14 +1500,71 @@ export function ParametersTable({
       </div>
 
       {/* Validation Alerts */}
-      {invalidCount > 0 && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Error invalid values. Lower Rate Limit cannot exceed Upper Rate Limit.
-          </AlertDescription>
-        </Alert>
-      )}
+      {invalidCount > 0 && (() => {
+        const lowerRateLimit = parameters.find((p) => p.id === "lowerRateLimit");
+        const upperRateLimit = parameters.find((p) => p.id === "upperRateLimit");
+        const maximumSensorRate = parameters.find((p) => p.id === "maximumSensorRate");
+        const atrialRefractoryPeriod = parameters.find((p) => p.id === "atrialRefractoryPeriod");
+        const atrialPulseWidth = parameters.find((p) => p.id === "atrialPulseWidth");
+        const minimumDynamicAVDelay = parameters.find((p) => p.id === "minimumDynamicAVDelay");
+        const fixedAVDelay = parameters.find((p) => p.id === "fixedAVDelay");
+        const sensedAVDelayOffset = parameters.find((p) => p.id === "sensedAVDelayOffset");
+        
+        const cardiacCycleInvalid = !validateCardiacCycleTime(
+          lowerRateLimit?.value,
+          atrialRefractoryPeriod?.value,
+          atrialPulseWidth?.value
+        );
+        
+        const hasCardiacCycleError = cardiacCycleInvalid && (
+          lowerRateLimit?.isValid === false ||
+          atrialRefractoryPeriod?.isValid === false ||
+          atrialPulseWidth?.isValid === false
+        );
+        
+        const hasMSRError = (
+          maximumSensorRate?.isValid === false ||
+          (upperRateLimit?.isValid === false && upperRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && upperRateLimit.value >= maximumSensorRate.value) ||
+          (lowerRateLimit?.isValid === false && lowerRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && lowerRateLimit.value >= maximumSensorRate.value)
+        );
+        
+        const sensedAVDelay = calculateSensedAVDelay(fixedAVDelay?.value, sensedAVDelayOffset?.value);
+        const hasAVDelayError = (
+          minimumDynamicAVDelay?.isValid === false ||
+          fixedAVDelay?.isValid === false ||
+          sensedAVDelayOffset?.isValid === false ||
+          (minimumDynamicAVDelay?.value !== undefined && fixedAVDelay?.value !== undefined && minimumDynamicAVDelay.value > fixedAVDelay.value) ||
+          (minimumDynamicAVDelay?.value !== undefined && sensedAVDelay !== undefined && minimumDynamicAVDelay.value > sensedAVDelay)
+        );
+        
+        return (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {hasCardiacCycleError ? (
+                <>
+                  <strong>Cardiac Cycle Time Error:</strong> At the programmed Lower Rate Limit, there is not enough time for one full cardiac cycle. 
+                  The constraint requires: 60000 ms - (ARP + Atrial Pulse Width) × LRL &gt; 0. 
+                  Please adjust Lower Rate Limit, Atrial Refractory Period, or Atrial Pulse Width.
+                </>
+              ) : hasMSRError ? (
+                <>
+                  <strong>Maximum Sensor Rate Error:</strong> Maximum Sensor Rate (MSR) must be greater than both Upper Rate Limit (URL) and Lower Rate Limit (LRL). 
+                  Please adjust MSR, URL, or LRL to satisfy: MSR &gt; URL and MSR &gt; LRL.
+                </>
+              ) : hasAVDelayError ? (
+                <>
+                  <strong>AV Delay Error:</strong> Minimum Dynamic AV Delay must be less than or equal to both Fixed AV Delay and Sensed AV Delay. 
+                  The constraints require: Minimum Dynamic AV Delay ≤ Fixed AV Delay, and Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed AV Delay = Fixed AV Delay + Sensed AV Delay Offset). 
+                  Please adjust Minimum Dynamic AV Delay, Fixed AV Delay, or Sensed AV Delay Offset.
+                </>
+              ) : (
+                "Error: Invalid parameter values. Please check all parameters for validation errors."
+              )}
+            </AlertDescription>
+          </Alert>
+        );
+      })()}
 
       {/* Mode Unavailable Alert */}
       {modeUnavailableAlert && (
