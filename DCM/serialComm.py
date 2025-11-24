@@ -68,7 +68,7 @@ class PacemakerInputs_template:
 
     def mapData(self,message):
         in_data = json.loads(message)                                                     
-
+        print(in_data)
         for key, value in in_data.items():
             if hasattr(self, key):  # check if the attribute exists
                 setattr(self, key, value)
@@ -133,10 +133,23 @@ class PacemakerInputs_template:
             packet.extend(struct.pack('<I', int(self.recoveryTime))) #bytes 91-94
             packet.extend(struct.pack('<I', int(self.maximumSensorRate))) #bytes 95-98
 
+
+
             if(self.hysteresisRateLimit == 0):
                 packet.extend(struct.pack('<B', 0)) #byte 99
             else:
                 packet.extend(struct.pack('<B', 1)) #byte 99
+            
+            # packet.extend(struct.pack('<f', float(self.atrialAmplitudeRegulated))) # bytes 100-103
+            # packet.extend(struct.pack('<f', float(self.ventricularAmplitudeRegulated))) # bytes 104-107
+
+            # packet.extend(struct.pack('<I', float(self.fixedAVDelay))) # bytes 108-111
+
+            # packet.extend(struct.pack('<B', float(self.dynamicAVDelay))) # bytes 112
+
+
+            # packet.extend(struct.pack('<I', float(self.pvarpExtension))) # bytes 108-111
+
 
             self.ser.write(packet)
             self.ser.flush()
