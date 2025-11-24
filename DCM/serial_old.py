@@ -4,6 +4,7 @@ import json
 import struct
 import serial
 import math # for ekg testing 
+import time
 
 connected = set()
 device_connected = {}  # Track connection state per websocket
@@ -16,8 +17,17 @@ class PacemakerInputs_template:
         self.baudrate = 115200
         self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
         #self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1) # for testing
-        
+
+        self.write_busy = False
+
+        self.ready_for_EKG = False
+
+        self.serial_lock = asyncio.Lock()
+        self.ekg_writer_task = None
+        self.ekg_start_time = None  # Track when EKG streaming started for relative timestamps
+
         self.waiting_for_device_info = False  # Flag to prevent other tasks from consuming device info response
+        self.waiting_for_parameters = False  # Flag to prevent other tasks from consuming parameter load response
         self.serialNum = 0
         self.deviceID = 0
 
@@ -52,57 +62,15 @@ class PacemakerInputs_template:
         self.responseFactor = 0
         self.recoveryTime = 0
 
+        self.atrDetect = 0
+        self.ventDetect = 0
+        self.timestamp = 0
+
         self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220, "DDDR": 3330}
-
-    def requestHandshake(self):
-        packet = bytearray(99)
-        packet[0] = 0x16  # SYNC byte 1
-        packet[1] = 0x45  # Function code byte 2
-        packet[2] = 1 # Flag enable for serial handshake byte 3
-
-        self.ser.write(packet)
-        self.ser.flush()
-
-        print("Handshake Requested")
-        asyncio.create_task(self.awaitHandshake())
-
-    async def awaitHandshake(self):
-        while True:
-            if not self.ser.is_open:
-                print("Handshake error, serial port is not open")
-                return
-
-            try:
-                if self.ser.in_waiting < 18:
-                    await asyncio.sleep(0.0001)
-                    continue
-
-                # Read exactly 18 bytes
-                packet = self.ser.read(18)
-                
-                # Validate header bytes
-                if not(packet[0] == 0x16 and packet[1] == 0x22):
-                    # invalid packet, but port still active, keep looping
-                    await asyncio.sleep(0.0001)
-                    continue
-                
-                # Extract two uint32 values (little-endian)
-                self.serialNum = struct.unpack('<I', packet[2:6])[0]
-                self.deviceID  = struct.unpack('<I', packet[6:10])[0]
-
-                print("Device Serial Number:", self.serialNum)
-                print("Model #: ", self.deviceID)
-                return
-
-            except serial.SerialException as e:
-                print(f"Serial error in handshake: {e}")
-                self.close()
-                return
- 
 
     def mapData(self,message):
         in_data = json.loads(message)                                                     
-
+        print(in_data)
         for key, value in in_data.items():
             if hasattr(self, key):  # check if the attribute exists
                 setattr(self, key, value)
@@ -131,6 +99,8 @@ class PacemakerInputs_template:
             except serial.SerialException as e:
                 print(f"Serial failure on reopen: {e}")
         try:
+            self.write_busy = True
+
             # Start of packet 
             packet = bytearray()
             packet.append(0x16)  # SYNC byte 1
@@ -165,30 +135,31 @@ class PacemakerInputs_template:
             packet.extend(struct.pack('<I', int(self.recoveryTime))) #bytes 91-94
             packet.extend(struct.pack('<I', int(self.maximumSensorRate))) #bytes 95-98
 
-            packet.extend(struct.pack('<B', 0)) #byte 99
+
+
+            if(self.hysteresisRateLimit == 0):
+                packet.extend(struct.pack('<B', 0)) #byte 99
+            else:
+                packet.extend(struct.pack('<B', 1)) #byte 99
+            
+            # packet.extend(struct.pack('<f', float(self.atrialAmplitudeRegulated))) # bytes 100-103
+            # packet.extend(struct.pack('<f', float(self.ventricularAmplitudeRegulated))) # bytes 104-107
+
+            # packet.extend(struct.pack('<I', float(self.fixedAVDelay))) # bytes 108-111
+
+            # packet.extend(struct.pack('<B', int(self.dynamicAVDelay))) # bytes 112
+            
+            # packet.extend(struct.pack('<b', int(self.sensedAVDelayOffset))) # bytes 113
+
+            # packet.extend(struct.pack('<I', int(self.pvarpExtension))) # bytes 108-111
+ 
+
             self.ser.write(packet)
             self.ser.flush()
 
-            print("Parameters sent to pacemaker")
-            
-            # ====== FOR TESTING WILL NEED TO REMOVE LATER ======
-            import time
-            time.sleep(0.05)  # Small delay to ensure loopback is ready
-            
-            if self.ser.in_waiting >= 99:
-                self.ser.read(99)  # Discard the echoed parameter packet
-                print("Consumed echoed parameter packet (loopback mode)")
-            
-            # Create echo packet with header 0x16 0x56
-            echo_packet = bytearray()
-            echo_packet.append(0x16)  # SYNC byte 1
-            echo_packet.append(0x56)  # Echo function code byte 2
+            self.write_busy = False
 
-            echo_packet.extend(packet[2:])  # copy them to simulate the echo from pacemaker
-            
-            self.ser.write(echo_packet)
-            self.ser.flush()
-            # ====================================================
+            print("Parameters sent to pacemaker")
 
         except serial.SerialException as e:
             print(f"Serial error: {e}")
@@ -216,22 +187,22 @@ class PacemakerInputs_template:
             pass
             
         try:
+            self.write_busy = True
             # Set flag to prevent other tasks from consuming the response
             self.waiting_for_device_info = True
             
             # start of packet (request handhshake)
-            packet = bytearray()
-            packet.append(0x16)  # SYNC byte 1
-            packet.append(0x22)  # byte 2
-
-            packet.append(0x01)  # FLAG 
-            packet.extend([0]*96)  # padding to 99 bytes
+            packet = bytearray(99)
+            packet[0] = 0x16  # SYNC byte 1
+            packet[1] = 0x45  # Function code byte 2
+            packet[2] = 1 # Flag enable for serial handshake byte 3
 
             self.ser.write(packet)
             self.ser.flush()
-            print("Device info request sent to pacemaker with request packet")
-            
-            
+
+            self.write_busy = False
+            print("Handshake Requested")
+
             return True
         except serial.SerialException as e:
             print(f"Serial error: {e}")
@@ -239,6 +210,148 @@ class PacemakerInputs_template:
             self.close()
             return False
 
+    # send request for board parameters via serial
+    def sendLoadParametersRequest(self):
+        if not self.ser.is_open:
+            try:
+                self.ser.open()
+                print("Opened serial comm port for load parameters request")
+            except serial.SerialException as e:
+                print(f"Serial failure on open: {e}")
+                return False
+        
+        # Clear any stale data in the buffer
+        try:
+            if self.ser.in_waiting > 0:
+                self.ser.reset_input_buffer()
+                print(f"Cleared {self.ser.in_waiting} bytes from input buffer")
+        except:
+            pass
+            
+        try:
+            self.write_busy = True
+            # Set flag to prevent other tasks from consuming the response
+            self.waiting_for_parameters = True
+            
+            # start of packet (request for board parameters)
+            packet = bytearray(99)
+            packet[0] = 0x16  # SYNC byte 1
+            packet[1] = 0x60  # Function code byte 2
+            packet[2] = 1 # Flag enable for serial handshake byte 3
+
+            self.ser.write(packet)
+            self.ser.flush()
+
+            self.write_busy = False
+            print("Load Parameters Requested")
+
+            return True
+        except serial.SerialException as e:
+            print(f"Serial error: {e}")
+            self.waiting_for_parameters = False
+            self.close()
+            return False
+
+    # waits for board parameters response from pacemaker via serial
+    async def awaitLoadParametersResponse(self, websocket):
+        timeout = 5.0  # 5 second timeout
+        start_time = asyncio.get_event_loop().time()
+        
+        while True:
+            # Check for timeout
+            if asyncio.get_event_loop().time() - start_time > timeout:
+                print("Load parameters response timeout")
+                self.waiting_for_parameters = False
+                return None
+                
+            if not self.ser.is_open:
+                print("Serial port closed during parameter load wait")
+                self.waiting_for_parameters = False
+                return None
+            try:
+                in_waiting = self.ser.in_waiting
+                if in_waiting >= 99:
+                    print(f"Found {in_waiting} bytes waiting, reading parameter load response...")
+                    response_packet = self.ser.read(99)
+                    
+                    # Check header bytes for parameter load response
+                    if not(response_packet[0] == 0x16 and response_packet[1] == 0x44):
+                        # invalid packet, but port still active, keep looping
+                        await asyncio.sleep(0.0001)
+                        continue
+                    
+                    print("Received parameters from pacemaker")
+                    
+                    # Unpack parameters from packet
+                    loaded_mode                = struct.unpack('<I', response_packet[2:6])[0]
+                    loaded_upperRateLimit      = struct.unpack('<I', response_packet[6:10])[0]
+                    loaded_lowerRateLimit      = struct.unpack('<I', response_packet[10:14])[0]
+
+                    loaded_atrialAmplitudeUnregulated  = struct.unpack('<f', response_packet[14:18])[0]
+                    loaded_atrialPulseWidth            = struct.unpack('<d', response_packet[18:26])[0]
+
+                    loaded_ventricularAmplitudeUnregulated = struct.unpack('<f', response_packet[26:30])[0]
+                    loaded_ventricularPulseWidth           = struct.unpack('<d', response_packet[30:38])[0]
+
+                    loaded_atrialRefractoryPeriod  = struct.unpack('<I', response_packet[38:42])[0]
+                    loaded_pvarp                   = struct.unpack('<I', response_packet[42:46])[0]
+                    loaded_hysteresisRateLimit     = struct.unpack('<I', response_packet[46:50])[0]
+
+                    loaded_rateSmoothing_up = struct.unpack('<d', response_packet[50:58])[0]
+                    loaded_rateSmoothing_down = struct.unpack('<d', response_packet[58:66])[0]
+
+                    loaded_atrialSensitivity       = struct.unpack('<f', response_packet[66:70])[0]
+                    loaded_ventricularSensitivity  = struct.unpack('<f', response_packet[70:74])[0]
+
+                    loaded_ventricularRefractoryPeriod = struct.unpack('<I', response_packet[74:78])[0]
+                    loaded_activityThreshold           = struct.unpack('<I', response_packet[78:82])[0]
+                    loaded_reactionTime                = struct.unpack('<I', response_packet[82:86])[0]
+                    loaded_responseFactor              = struct.unpack('<I', response_packet[86:90])[0]
+                    loaded_recoveryTime                = struct.unpack('<I', response_packet[90:94])[0]
+                    loaded_maximumSensorRate           = struct.unpack('<I', response_packet[94:98])[0]
+                    
+                    # Convert mode code back to string if needed
+                    reverse_mode_dict = {v: k for k, v in self.modedict.items()}
+                    mode_string = reverse_mode_dict.get(loaded_mode, "UNKNOWN")
+                    
+                    # Clear flag now that we got the response
+                    self.waiting_for_parameters = False
+                    
+                    # Send loaded parameters to frontend
+                    loaded_parameters = {
+                        "type": "BOARD_PARAMETERS_LOADED",
+                        "mode": mode_string,
+                        "upperRateLimit": loaded_upperRateLimit,
+                        "lowerRateLimit": loaded_lowerRateLimit,
+                        "atrialAmplitudeUnregulated": loaded_atrialAmplitudeUnregulated,
+                        "atrialPulseWidth": loaded_atrialPulseWidth,
+                        "ventricularAmplitudeUnregulated": loaded_ventricularAmplitudeUnregulated,
+                        "ventricularPulseWidth": loaded_ventricularPulseWidth,
+                        "atrialRefractoryPeriod": loaded_atrialRefractoryPeriod,
+                        "pvarp": loaded_pvarp,
+                        "hysteresisRateLimit": loaded_hysteresisRateLimit,
+                        "rateSmoothing": loaded_rateSmoothing_up,  # Use up value
+                        "atrialSensitivity": loaded_atrialSensitivity,
+                        "ventricularSensitivity": loaded_ventricularSensitivity,
+                        "ventricularRefractoryPeriod": loaded_ventricularRefractoryPeriod,
+                        "activityThreshold": loaded_activityThreshold,
+                        "reactionTime": loaded_reactionTime,
+                        "responseFactor": loaded_responseFactor,
+                        "recoveryTime": loaded_recoveryTime,
+                        "maximumSensorRate": loaded_maximumSensorRate
+                    }
+                    await websocket.send(json.dumps(loaded_parameters))
+                    return loaded_parameters
+                        
+            except serial.SerialException as e:
+                print(f"Serial error during parameter load wait: {e}")
+                self.waiting_for_parameters = False
+                self.close()
+                return None
+            except Exception as e:
+                print(f"Unexpected error during parameter load wait: {e}")
+
+            await asyncio.sleep(0.01)
 
     # waits for device info response from pacemaker via serial
     async def awaitDeviceInfoResponse(self, websocket):
@@ -263,32 +376,36 @@ class PacemakerInputs_template:
                     response_packet = self.ser.read(99)
                     
                     # Check header bytes for device info response (await handshake)
-                    if response_packet[0] == 0x16 and response_packet[1] == 0x23:
-                        print("Received device info from pacemaker")
-                        
-                        # Clear flag now that we got the response
-                        self.waiting_for_device_info = False
-                        
-                        # NEEDS TO BE IMPLEMENTED TO UNPACK DEVICE INFO
-                        # device_serial_number = struct.unpack
-                        # device_model = struct.unpack
-                        
-                        # ====== FOR TESTING WILL NEED TO REMOVE LATER ======
-                        device_serial_number = "123456789"
-                        device_model = "1000"
-                        # ====================================================
-                        
-                        # Send device info to frontend
-                        device_info = {
-                            "type": "DEVICE_INFO",
-                            "serialNumber": device_serial_number,
-                            "deviceModel": device_model,
-                            "connected": True
-                        }
-                        await websocket.send(json.dumps(device_info))
-                        return device_info
-                    else:
-                        print(f"Received packet with wrong headers: {response_packet[0]:02x} {response_packet[1]:02x}")
+                    if not(response_packet[0] == 0x16 and response_packet[1] == 0x29):
+                        # invalid packet, but port still active, keep looping
+                        await asyncio.sleep(0.0001)
+                        continue
+                    
+                    # Extract two uint32 values (little-endian)
+                    self.serialNum = struct.unpack('<I', response_packet[2:6])[0]
+                    self.deviceID  = struct.unpack('<I', response_packet[6:10])[0]
+
+                    print("Device Serial Number:", self.serialNum)
+                    print("Model #: ", self.deviceID)
+                    print("Received device info from pacemaker")
+                    
+                    # Clear flag now that we got the response
+                    self.waiting_for_device_info = False
+                    
+                    # NEEDS TO BE IMPLEMENTED TO UNPACK DEVICE INFO
+                    device_serial_number = self.serialNum
+                    device_model = self.deviceID
+                    
+                    
+                    # Send device info to frontend
+                    device_info = {
+                        "type": "DEVICE_INFO",
+                        "serialNumber": device_serial_number,
+                        "deviceModel": device_model,
+                        "connected": True
+                    }
+                    await websocket.send(json.dumps(device_info))
+                    return device_info
                         
             except serial.SerialException as e:
                 print(f"Serial error during device info wait: {e}")
@@ -300,80 +417,133 @@ class PacemakerInputs_template:
 
             await asyncio.sleep(0.01)
 
+    async def ekg_request_loop(self):
+        """Send EKG request packets every 10 ms until cancelled."""
+        try:
+            while True:
+                await self.sendEKGRequest(start=True)
+                await asyncio.sleep(0.0001)
+        except asyncio.CancelledError:
+            await self.sendEKGRequest(start=False)
+            print("EKG request loop stopped")
 
+
+    async def sendEKGRequest(self, start=True):
+        async with self.serial_lock:
+            try:
+                packet = bytearray(99)
+                packet[0] = 0x16
+                packet[1] = 0x36
+                packet[2] = 1 if start else 0
+
+                self.ser.write(packet)
+                self.ser.flush()
+                self.ready_for_EKG = True
+                return True
+
+            except serial.SerialException:
+                self.ready_for_EKG = False
+                return False
+    
 
     # waits for EKG data from pacemaker via serial
-    async def awaitEKGData(self):
-        while True:
+    async def awaitEKGData(self, websocket):
+        # Initialize start time for relative timestamps (milliseconds since stream start)
+        if self.ekg_start_time is None:
+            self.ekg_start_time = time.time()
+        
+        while True: # infinte loop while streaming is active
             if not self.ser.is_open:
+                print("=== EKG LOOP ENDED: Serial port closed ===")
+                self.ekg_start_time = None  # Reset start time when stream ends
                 return
             try:
                 if self.ser.in_waiting >= 99:
-                    await asyncio.sleep(0.01)  # Give verification task time to process
-                    continue
-                if self.ser.in_waiting >= 18:
-                    packet = self.ser.read(18)
-
-                    # Check header bytes
-                    if not(packet[0] == 0x15 and packet[1] == 0x50):
-                        await asyncio.sleep(0.001)
+                    packet = self.ser.read(99)
+                    # Check header bytes for EKG data
+                    if not(packet[0] == 0x16 and packet[1] == 0x20):
+                        await asyncio.sleep(0.0001)
                         continue
-                    # Extract payload (16 bytes)
-                    payload = packet[2:18]
-                    a1, a2 = struct.unpack('<BB', packet[1:2]) 
-                    f1, f2, f3, f4 = struct.unpack('<ffff', payload)
-                    print("EKG Data:", a1, a2, f1, f2, f3, f4)
+                
+                    # Extract packet
+                    self.atrDetect = struct.unpack('<f', packet[2:6])[0]
+                    self.ventDetect  = struct.unpack('<f', packet[6:10])[0]
+                    
+                    # Calculate relative timestamp in milliseconds since stream started
+                    current_time = time.time()
+                    if self.ekg_start_time is None:
+                        self.ekg_start_time = current_time
+                    relative_time_ms = (current_time - self.ekg_start_time) * 1000
+                    
+                    # Send EKG data to frontend with relative timestamp
+                    ekg_data = {
+                        "type": "ekg",
+                        "Atrial": [{"x": relative_time_ms, "y": self.atrDetect}],
+                        "Ventricular": [{"x": relative_time_ms, "y": self.ventDetect}]
+                    }
+                    await websocket.send(json.dumps(ekg_data))
+                    print(f"EKG Data: Atrial={self.atrDetect:.2f}, Ventricular={self.ventDetect:.2f}, Time={relative_time_ms:.2f}ms")
+                    
             except serial.SerialException as e:
                 print(f"Serial error: {e}")
                 self.close()
+                # print("=== EKG LOOP ENDED: Serial error ===") #remove this later
                 return
 
             await asyncio.sleep(0.001)
-
-
 
     # waits for echoed parameters to verify them with sent parameters
     async def awaitEchoedParameters(self, websocket):
         while True:
             if not self.ser.is_open:
-                return
+                 return
             try:
-                # Skip reading if waiting for device info response
-                if self.waiting_for_device_info:
-                    await asyncio.sleep(0.01)
+                # Skip reading if waiting for device info response or parameter load response
+                if self.waiting_for_device_info or self.waiting_for_parameters:
+                    await asyncio.sleep(0.0001)
                     continue
-                    
+                
                 # Wait for 99-byte echo packet (same size as sent packet)
                 if self.ser.in_waiting >= 99:
                     packet = self.ser.read(99)
                     # Check header bytes for echo packet
-                    if packet[0] != 0x16 or packet[1] != 0x56:
+                    if not (packet[0] == 0x16 and packet[1] == 0x39):
+                        await asyncio.sleep(0.0001)
                         continue
 
                     print("Received echoed parameters from pacemaker")
                     # Unpack echoed parameters from packet
-                    # echoed_mode = struct.unpack
-                    # echoed_upperRateLimit = struct.unpack
-                    # echoed_lowerRateLimit = struct.unpack
-                    # echoed_atrialAmplitudeUnregulated = struct.unpack
-                    # echoed_atrialPulseWidth = struct.unpack
-                    # echoed_ventricularAmplitudeUnregulated = struct.unpack
-                    # echoed_ventricularPulseWidth = struct.unpack
-                    # echoed_atrialRefractoryPeriod = struct.unpack
-                    # echoed_pvarp = struct.unpack
-                    # echoed_hysteresisRateLimit = struct.unpack
-                    # echoed_rateSmoothing = struct.unpack
-                    # echoed_atrialSensitivity = struct.unpack
-                    # echoed_ventricularSensitivity = struct.unpack
-                    # echoed_ventricularRefractoryPeriod = struct.unpack
-                    # echoed_activityThreshold = struct.unpack
-                    # echoed_reactionTime = struct.unpack
-                    # echoed_responseFactor = struct.unpack
-                    # echoed_recoveryTime = struct.unpack
-                    # echoed_maximumSensorRate = struct.unpack
-                    # Compare echoed parameters with sent parameters
+                    echoed_mode                = struct.unpack('<I', packet[2:6])[0]
+                    echoed_upperRateLimit      = struct.unpack('<I', packet[6:10])[0]
+                    echoed_lowerRateLimit      = struct.unpack('<I', packet[10:14])[0]
+
+                    echoed_atrialAmplitudeUnregulated  = struct.unpack('<f', packet[14:18])[0]
+                    echoed_atrialPulseWidth            = struct.unpack('<d', packet[18:26])[0]
+
+                    echoed_ventricularAmplitudeUnregulated = struct.unpack('<f', packet[26:30])[0]
+                    echoed_ventricularPulseWidth           = struct.unpack('<d', packet[30:38])[0]
+
+                    echoed_atrialRefractoryPeriod  = struct.unpack('<I', packet[38:42])[0]
+                    echoed_pvarp                   = struct.unpack('<I', packet[42:46])[0]
+                    echoed_hysteresisRateLimit     = struct.unpack('<I', packet[46:50])[0]
+
+                    echoed_rateSmoothing_up = struct.unpack('<d', packet[50:58])[0]
+                    echoed_rateSmoothing_down = struct.unpack('<d', packet[58:66])[0]  # duplicate in pack
+
+                    echoed_atrialSensitivity       = struct.unpack('<f', packet[66:70])[0]
+                    echoed_ventricularSensitivity  = struct.unpack('<f', packet[70:74])[0]
+
+                    echoed_ventricularRefractoryPeriod = struct.unpack('<I', packet[74:78])[0]
+                    echoed_activityThreshold           = struct.unpack('<I', packet[78:82])[0]
+                    echoed_reactionTime                = struct.unpack('<I', packet[82:86])[0]
+                    echoed_responseFactor              = struct.unpack('<I', packet[86:90])[0]
+                    echoed_recoveryTime                = struct.unpack('<I', packet[90:94])[0]
+                    echoed_maximumSensorRate           = struct.unpack('<I', packet[94:98])[0]
                     
-                    # verification_result = self.verifyParameters(echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit, ... )
+                    verification_result = self.verifyParameters(echoed_mode, echoed_upperRateLimit, echoed_lowerRateLimit, echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth, 
+                                                                echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,echoed_atrialRefractoryPeriod,echoed_pvarp,echoed_hysteresisRateLimit,
+                                                                echoed_rateSmoothing_up, echoed_rateSmoothing_down, echoed_atrialSensitivity, echoed_ventricularSensitivity, echoed_ventricularRefractoryPeriod,
+                                                                echoed_activityThreshold, echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime, echoed_maximumSensorRate)
                     verification_result = True # assume true before unpacking just for testing (will implement line above after unpacking)
                     if verification_result:
                         print("Parameters verified successfully")
@@ -405,7 +575,7 @@ class PacemakerInputs_template:
                         echoed_atrialAmplitudeUnregulated, echoed_atrialPulseWidth,
                         echoed_ventricularAmplitudeUnregulated, echoed_ventricularPulseWidth,
                         echoed_atrialRefractoryPeriod, echoed_pvarp, echoed_hysteresisRateLimit,
-                        echoed_rateSmoothing, echoed_atrialSensitivity, echoed_ventricularSensitivity,
+                        echoed_rateSmoothing_up, echoed_rateSmoothing_down, echoed_atrialSensitivity, echoed_ventricularSensitivity,
                         echoed_ventricularRefractoryPeriod, echoed_activityThreshold,
                         echoed_reactionTime, echoed_responseFactor, echoed_recoveryTime,
                         echoed_maximumSensorRate):
@@ -444,12 +614,14 @@ class PacemakerInputs_template:
             return False
         elif echoed_ventricularPulseWidth != self.ventricularPulseWidth:
             return False
-        elif echoed_rateSmoothing != self.rateSmoothing:
+        elif echoed_rateSmoothing_up != self.rateSmoothing:
             return False
-        elif echoed_atrialSensitivity != self.atrialSensitivity:
+        elif echoed_rateSmoothing_down != self.rateSmoothing:
             return False
-        elif echoed_ventricularSensitivity != self.ventricularSensitivity:
-            return False
+        # elif echoed_atrialSensitivity != self.atrialSensitivity:
+            # return False
+        # elif echoed_ventricularSensitivity != self.ventricularSensitivity:
+            # return False
         return True
 
     def close(self):
@@ -465,44 +637,6 @@ class ECGData_template:
         self.VentPulse = 0
         self.Time = 0
 
-async def egm_simulator(websocket):
-    t = 0.0
-    dt = 0.004  # 4ms between points = 250 Hz sampling rate
-    window_seconds = 10.0  # Keep last 10 seconds of data
-    max_points = int(window_seconds / dt)
-    egm_data = {  # Fixed: emg -> egm
-        "type": "ekg",  # Changed to "ekg" to match frontend expectations
-        "Atrial": [], 
-        "Ventricular": [],
-        "ECG": []
-    }
-    try:
-        while True: 
-            t += dt
-            atrial_val = 5.0 * math.sin(2 * math.pi * 1.0 * t)
-            ventricular_val = 12.0 * math.sin(2 * math.pi * 1.0 * t + 0.6)
-            ecg_val = atrial_val * 0.5 + ventricular_val * 0.8
-            egm_data["Atrial"].append({"x": t, "y": atrial_val})
-            egm_data["Ventricular"].append({"x": t, "y": ventricular_val})
-            egm_data["ECG"].append({"x": t, "y": ecg_val})
-            for key in ["Atrial", "Ventricular", "ECG"]:
-                if len(egm_data[key]) > max_points:
-                    egm_data[key].pop(0)
-            # send data to frontend
-            await websocket.send(json.dumps(egm_data))
-            # sample interval
-            await asyncio.sleep(dt)
-
-    except asyncio.CancelledError:
-        # Task was cancelled; exit gracefully
-        pass
-    except websockets.exceptions.ConnectionClosedOK:
-        # Client disconnected normally; exit gracefully
-        pass
-    except websockets.exceptions.ConnectionClosedError as e:
-        # Client disconnected unexpectedly; log if needed
-        print(f"Websocket disconnected: {e}")
-        pass
 
 PacemakerInputs = PacemakerInputs_template()
 ECGData = ECGData_template()
@@ -516,8 +650,8 @@ async def handler(websocket):
         connected.add(websocket)
         device_connected[websocket] = False  # Initially not connected to device
         #egm_task = asyncio.create_task(egm_simulator(websocket))
-        #test_recieve = asyncio.create_task(PacemakerInputs.awaitEKGData())
-        #verification_task = asyncio.create_task(PacemakerInputs.awaitEchoedParameters(websocket))
+        ekg_task = None  # Track EKG streaming task
+        verification_task = asyncio.create_task(PacemakerInputs.awaitEchoedParameters(websocket))
         
         async for message in websocket:
             # Try to parse as JSON for structured messages
@@ -541,7 +675,6 @@ async def handler(websocket):
                                 "state": "Connected"
                             }
                             await websocket.send(json.dumps(response))
-                            PacemakerInputs.requestHandshake()
                             print("Device connected")
                         else:
                             # Connection failed - timeout or no response
@@ -570,6 +703,76 @@ async def handler(websocket):
                     }
                     await websocket.send(json.dumps(response))
                     print("Device disconnected, Wipe DCM state")
+                
+                elif msg_type == "EKG_START_REQUEST":
+                    # Reset start time when starting a new stream
+                    PacemakerInputs.ekg_start_time = None
+                    
+                    if PacemakerInputs.ekg_writer_task is None or PacemakerInputs.ekg_writer_task.done():
+                        PacemakerInputs.ekg_writer_task = asyncio.create_task(PacemakerInputs.ekg_request_loop())
+
+                        # Start reading data too
+                        if ekg_task is None or ekg_task.done():
+                            ekg_task = asyncio.create_task(PacemakerInputs.awaitEKGData(websocket))
+
+                        # Respond to frontend
+                        await websocket.send(json.dumps({
+                            "type": "EKG_STATUS",
+                            "streaming": True,
+                            "message": "EKG streaming started"
+                        }))
+
+                elif msg_type == "EKG_STOP_REQUEST":
+                    # Reset start time when stopping stream
+                    PacemakerInputs.ekg_start_time = None
+                    
+                    if PacemakerInputs.ekg_writer_task:
+                        PacemakerInputs.ekg_writer_task.cancel()
+                        try:
+                            await PacemakerInputs.ekg_writer_task
+                        except asyncio.CancelledError:
+                            pass
+                        PacemakerInputs.ekg_writer_task = None
+
+                    if ekg_task:
+                        ekg_task.cancel()
+                        try:
+                            await ekg_task
+                        except asyncio.CancelledError:
+                            pass
+
+                    await websocket.send(json.dumps({
+                        "type": "EKG_STATUS",
+                        "streaming": False,
+                        "message": "EKG streaming stopped"
+                    }))
+                
+                elif msg_type == "LOAD_BOARD_PARAMETERS_REQUEST":
+                    # Send load parameters request to pacemaker
+                    request_sent = PacemakerInputs.sendLoadParametersRequest()
+
+                    if request_sent:
+                        # Wait for parameter load response
+                        loaded_parameters = await PacemakerInputs.awaitLoadParametersResponse(websocket)
+                        
+                        if not loaded_parameters:
+                            # Load failed - timeout or no response
+                            response = {
+                                "type": "BOARD_PARAMETERS_LOADED",
+                                "status": "failed",
+                                "message": "Failed to load parameters from board"
+                            }
+                            await websocket.send(json.dumps(response))
+                            print("Failed to load parameters from board")
+                    else:
+                        # Failed to send request
+                        response = {
+                            "type": "BOARD_PARAMETERS_LOADED",
+                            "status": "failed",
+                            "message": "Failed to send load parameters request"
+                        }
+                        await websocket.send(json.dumps(response))
+                        print("Failed to send load parameters request")
                     
                 else:
                     # Handle parameter data or other messages
@@ -591,12 +794,13 @@ async def handler(websocket):
         print(f"Error in handler: {e}")
     finally:
         # Cancel all tasks
-        #egm_task.cancel()
+        if ekg_task and not ekg_task.done():
+            ekg_task.cancel()
+            try:
+                await ekg_task
+            except asyncio.CancelledError:
+                pass
         verification_task.cancel()
-        #try:
-        #    await egm_task
-        #except asyncio.CancelledError:
-        #    pass
         try:
             await verification_task
         except asyncio.CancelledError:
