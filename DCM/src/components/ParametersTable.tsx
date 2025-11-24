@@ -764,6 +764,24 @@ export function ParametersTable({
     return remainingTime > 0;
   };
 
+  // Helper function to validate AV delay with PVARP constraint
+  const validateAVDelayWithPVARP = (
+    lowerRateLimit: number | undefined,
+    fixedAVDelay: number | undefined,
+    pvarp: number | undefined,
+    atrialPulseWidth: number | undefined
+  ): boolean => {
+    if (lowerRateLimit === undefined || fixedAVDelay === undefined || 
+        pvarp === undefined || atrialPulseWidth === undefined || lowerRateLimit === 0) {
+      return true; 
+    }
+    
+    const cardiacCycleTime = 60000 / lowerRateLimit; 
+    const totalAVTime = fixedAVDelay + pvarp + atrialPulseWidth;
+    
+    return totalAVTime < cardiacCycleTime;
+  };
+
   // Helper function to calculate Sensed AV Delay
   // Sensed AV Delay = Fixed AV Delay + Sensed AV Delay Offset
   const calculateSensedAVDelay = (
@@ -774,6 +792,19 @@ export function ParametersTable({
       return undefined;
     }
     return fixedAVDelay + sensedAVDelayOffset;
+  };
+
+  // Helper function to validate AV Offset constraint
+  // Ensures: |Sensed AV Delay Offset| < Minimum Dynamic AV Delay
+  const validateAVOffsetConstraint = (
+    sensedAVDelayOffset: number | undefined,
+    minimumDynamicAVDelay: number | undefined
+  ): boolean => {
+    if (sensedAVDelayOffset === undefined || minimumDynamicAVDelay === undefined) {
+      return true; // Can't validate if values are missing
+    }
+    
+    return Math.abs(sensedAVDelayOffset) < minimumDynamicAVDelay;
   };
 
   // Update parameter value and validity
@@ -788,6 +819,7 @@ export function ParametersTable({
       const currentFixedAVDelay = prev.find((p) => p.id === "fixedAVDelay")?.value;
       const currentMinimumDynamicAVDelay = prev.find((p) => p.id === "minimumDynamicAVDelay")?.value;
       const currentSensedAVDelayOffset = prev.find((p) => p.id === "sensedAVDelayOffset")?.value;
+      const currentPVARP = prev.find((p) => p.id === "pvarp")?.value;
 
       const updatedParams = prev.map((param) => {
         if (param.id === id) {
@@ -852,9 +884,23 @@ export function ParametersTable({
               }
             }
             
+            // AV Delay + PVARP constraint validation
+            if (param.id === "lowerRateLimit" || param.id === "fixedAVDelay" || 
+                param.id === "pvarp" || param.id === "atrialPulseWidth") {
+              const newLRL = param.id === "lowerRateLimit" ? numValue : currentLowerRate;
+              const newFixedAVDelay = param.id === "fixedAVDelay" ? numValue : currentFixedAVDelay;
+              const newPVARP = param.id === "pvarp" ? numValue : currentPVARP;
+              const newAtrialPulseWidth = param.id === "atrialPulseWidth" ? numValue : currentAtrialPulseWidth;
+              
+              if (!validateAVDelayWithPVARP(newLRL, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
+                isValid = false;
+              }
+            }
+            
             // AV Delay validation constraints
             // 1. Minimum Dynamic AV Delay ≤ Fixed AV Delay
             // 2. Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed = FixedAV + Offset)
+            // 3. |Sensed AV Delay Offset| < Minimum Dynamic AV Delay
             if (param.id === "minimumDynamicAVDelay") {
               // Constraint 1: Minimum Dynamic AV Delay ≤ Fixed AV Delay
               if (currentFixedAVDelay !== undefined && numValue > currentFixedAVDelay) {
@@ -864,6 +910,11 @@ export function ParametersTable({
               // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay
               const sensedAVDelay = calculateSensedAVDelay(currentFixedAVDelay, currentSensedAVDelayOffset);
               if (sensedAVDelay !== undefined && numValue > sensedAVDelay) {
+                isValid = false;
+              }
+              
+              // Constraint 3: |Sensed AV Delay Offset| < Minimum Dynamic AV Delay
+              if (!validateAVOffsetConstraint(currentSensedAVDelayOffset, numValue)) {
                 isValid = false;
               }
             } else if (param.id === "fixedAVDelay") {
@@ -879,10 +930,15 @@ export function ParametersTable({
                 isValid = false;
               }
             } else if (param.id === "sensedAVDelayOffset") {
-              // When Sensed AV Delay Offset changes, check constraint 2
+              // When Sensed AV Delay Offset changes, check constraint 2 and 3
               // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay
               const sensedAVDelay = calculateSensedAVDelay(currentFixedAVDelay, numValue);
               if (sensedAVDelay !== undefined && currentMinimumDynamicAVDelay !== undefined && currentMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+              
+              // Constraint 3: |Sensed AV Delay Offset| < Minimum Dynamic AV Delay
+              if (!validateAVOffsetConstraint(numValue, currentMinimumDynamicAVDelay)) {
                 isValid = false;
               }
             }
@@ -997,6 +1053,40 @@ export function ParametersTable({
           }
         }
         
+        // Revalidate AV Delay + PVARP constraint when any related parameter changes
+        if (
+          (id === "lowerRateLimit" || id === "fixedAVDelay" || id === "pvarp" || id === "atrialPulseWidth") &&
+          (param.id === "lowerRateLimit" || param.id === "fixedAVDelay" || param.id === "pvarp" || param.id === "atrialPulseWidth")
+        ) {
+          const newLRL = id === "lowerRateLimit" ? value : (param.id === "lowerRateLimit" ? param.value : currentLowerRate);
+          const newFixedAVDelay = id === "fixedAVDelay" ? value : (param.id === "fixedAVDelay" ? param.value : currentFixedAVDelay);
+          const newPVARP = id === "pvarp" ? value : (param.id === "pvarp" ? param.value : currentPVARP);
+          const newAtrialPulseWidth = id === "atrialPulseWidth" ? value : (param.id === "atrialPulseWidth" ? param.value : currentAtrialPulseWidth);
+          
+          // Only revalidate if this parameter wasn't the one being changed (to avoid double validation)
+          if (param.id !== id) {
+            let isValid = param.isValid !== false; // preserve other validation
+            
+            // Re-check AV Delay + PVARP constraint
+            if (!validateAVDelayWithPVARP(newLRL, newFixedAVDelay, newPVARP, newAtrialPulseWidth)) {
+              isValid = false;
+            } else {
+              // If constraint is valid, still check min/max constraints
+              if (param.min !== undefined && param.value < param.min) {
+                isValid = false;
+              }
+              if (param.max !== undefined && param.value > param.max) {
+                isValid = false;
+              }
+            }
+            
+            return {
+              ...param,
+              isValid,
+            };
+          }
+        }
+
         // Revalidate AV Delay relationships when any of them changes
         if (
           (id === "minimumDynamicAVDelay" || id === "fixedAVDelay" || id === "sensedAVDelayOffset") &&
@@ -1014,11 +1104,16 @@ export function ParametersTable({
             
             // Constraint 1: Minimum Dynamic AV Delay ≤ Fixed AV Delay
             // Constraint 2: Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed = FixedAV + Offset)
+            // Constraint 3: |Sensed AV Delay Offset| < Minimum Dynamic AV Delay
             if (param.id === "minimumDynamicAVDelay") {
               if (newFixedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > newFixedAVDelay) {
                 isValid = false;
               }
               if (sensedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+              // Constraint 3
+              if (!validateAVOffsetConstraint(newSensedAVDelayOffset, newMinimumDynamicAVDelay)) {
                 isValid = false;
               }
             } else if (param.id === "fixedAVDelay") {
@@ -1030,6 +1125,10 @@ export function ParametersTable({
               }
             } else if (param.id === "sensedAVDelayOffset") {
               if (sensedAVDelay !== undefined && newMinimumDynamicAVDelay !== undefined && newMinimumDynamicAVDelay > sensedAVDelay) {
+                isValid = false;
+              }
+              // Constraint 3
+              if (!validateAVOffsetConstraint(newSensedAVDelayOffset, newMinimumDynamicAVDelay)) {
                 isValid = false;
               }
             }
@@ -1526,6 +1625,7 @@ export function ParametersTable({
         const minimumDynamicAVDelay = parameters.find((p) => p.id === "minimumDynamicAVDelay");
         const fixedAVDelay = parameters.find((p) => p.id === "fixedAVDelay");
         const sensedAVDelayOffset = parameters.find((p) => p.id === "sensedAVDelayOffset");
+        const pvarp = parameters.find((p) => p.id === "pvarp");
         
         const cardiacCycleInvalid = !validateCardiacCycleTime(
           lowerRateLimit?.value,
@@ -1539,25 +1639,48 @@ export function ParametersTable({
           atrialPulseWidth?.isValid === false
         );
         
+        const avDelayPVARPInvalid = !validateAVDelayWithPVARP(
+          lowerRateLimit?.value,
+          fixedAVDelay?.value,
+          pvarp?.value,
+          atrialPulseWidth?.value
+        );
+        
+        const hasAVDelayPVARPError = avDelayPVARPInvalid && (
+          lowerRateLimit?.isValid === false ||
+          fixedAVDelay?.isValid === false ||
+          pvarp?.isValid === false ||
+          atrialPulseWidth?.isValid === false
+        );
+        
         const hasMSRError = (
           maximumSensorRate?.isValid === false ||
           (lowerRateLimit?.isValid === false && lowerRateLimit?.value !== undefined && maximumSensorRate?.value !== undefined && lowerRateLimit.value >= maximumSensorRate.value)
         );
         
         const sensedAVDelay = calculateSensedAVDelay(fixedAVDelay?.value, sensedAVDelayOffset?.value);
+        const avOffsetInvalid = !validateAVOffsetConstraint(sensedAVDelayOffset?.value, minimumDynamicAVDelay?.value);
+        
         const hasAVDelayError = (
           minimumDynamicAVDelay?.isValid === false ||
           fixedAVDelay?.isValid === false ||
           sensedAVDelayOffset?.isValid === false ||
           (minimumDynamicAVDelay?.value !== undefined && fixedAVDelay?.value !== undefined && minimumDynamicAVDelay.value > fixedAVDelay.value) ||
-          (minimumDynamicAVDelay?.value !== undefined && sensedAVDelay !== undefined && minimumDynamicAVDelay.value > sensedAVDelay)
+          (minimumDynamicAVDelay?.value !== undefined && sensedAVDelay !== undefined && minimumDynamicAVDelay.value > sensedAVDelay) ||
+          avOffsetInvalid
         );
         
         return (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {hasCardiacCycleError ? (
+              {hasAVDelayPVARPError ? (
+                <>
+                  <strong>AV Delay + PVARP Constraint Error:</strong> The sum of Fixed AV Delay + PVARP + Atrial Pulse Width must be less than the cardiac cycle time (60000 ms / LRL). 
+                  Current constraint: {fixedAVDelay?.value} + {pvarp?.value} + {atrialPulseWidth?.value} = {(fixedAVDelay?.value || 0) + (pvarp?.value || 0) + (atrialPulseWidth?.value || 0)} ms must be &lt; {lowerRateLimit?.value ? (60000 / lowerRateLimit.value).toFixed(1) : 'N/A'} ms. 
+                  Please adjust Fixed AV Delay, PVARP, Atrial Pulse Width, or Lower Rate Limit.
+                </>
+              ) : hasCardiacCycleError ? (
                 <>
                   <strong>Cardiac Cycle Time Error:</strong> At the programmed Lower Rate Limit, there is not enough time for one full cardiac cycle. 
                   The constraint requires: 60000 ms - (ARP + Atrial Pulse Width) × LRL &gt; 0. 
@@ -1570,9 +1693,15 @@ export function ParametersTable({
                 </>
               ) : hasAVDelayError ? (
                 <>
-                  <strong>AV Delay Error:</strong> Minimum Dynamic AV Delay must be less than or equal to both Fixed AV Delay and Sensed AV Delay. 
-                  The constraints require: Minimum Dynamic AV Delay ≤ Fixed AV Delay, and Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed AV Delay = Fixed AV Delay + Sensed AV Delay Offset). 
-                  Please adjust Minimum Dynamic AV Delay, Fixed AV Delay, or Sensed AV Delay Offset.
+                  <strong>AV Delay Error:</strong> AV Delay constraints violated. 
+                  The constraints require: 
+                  (1) Minimum Dynamic AV Delay ≤ Fixed AV Delay, 
+                  (2) Minimum Dynamic AV Delay ≤ Sensed AV Delay (where Sensed AV Delay = Fixed AV Delay + Sensed AV Delay Offset), and 
+                  (3) |Sensed AV Delay Offset| &lt; Minimum Dynamic AV Delay. 
+                  {avOffsetInvalid && (
+                    <span> Current: |{sensedAVDelayOffset?.value}| = {Math.abs(sensedAVDelayOffset?.value || 0)} must be &lt; {minimumDynamicAVDelay?.value}.</span>
+                  )}
+                  {' '}Please adjust Minimum Dynamic AV Delay, Fixed AV Delay, or Sensed AV Delay Offset.
                 </>
               ) : (
                 "Error: Invalid parameter values. Please check all parameters for validation errors."
