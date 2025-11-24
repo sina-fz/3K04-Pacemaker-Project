@@ -35,7 +35,7 @@ interface ParametersTableProps {
   selectedPatient: any;
   onParameterSaved: (parameter: any) => void;
   onSendToPacemaker?: (parameters: any) => void;
-  onLoadBoardParameters?: () => void;
+  onLoadBoardParameters?: (callback: (params: any) => void) => void;
   verificationStatus?: {
     status: "pending" | "verified" | "failed" | null;
     message: string;
@@ -1185,8 +1185,19 @@ export function ParametersTable({
 
   // Load parameters from the connected board
   const handleLoadBoardParameters = () => {
-    // Call the callback to request parameters from the board
-    onLoadBoardParameters?.();
+    // Call the callback with a function that will update parameters and mark them as dirty
+    onLoadBoardParameters?.((loadedParams: any) => {
+      // Update all parameters with loaded values and mark as dirty
+      setParameters((prev) =>
+        prev.map((param) => ({
+          ...param,
+          value: loadedParams[param.id] ?? param.value,
+          isDirty: true, // mark as dirty to show blue highlight
+          isValid: true,
+        }))
+      );
+      setHasChanges(true); // enable Save Changes button
+    });
   };
 
   // Save parameters to localStorage

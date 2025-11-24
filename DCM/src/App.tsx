@@ -80,6 +80,7 @@ export default function App() {
 const wsRef = useRef<WebSocket | null>(null);
 const currentUserRef = useRef<string>(currentUser);
 const selectedPatientRef = useRef<Patient | null>(selectedPatient);
+const loadBoardParamsCallbackRef = useRef<((params: any) => void) | null>(null);
 
 // Keep refs in sync with state
 useEffect(() => {
@@ -235,28 +236,12 @@ useEffect(() => {
           // Board parameters received from pacemaker
           console.log("BOARD_PARAMETERS_RESPONSE received:", data);
           
-          if (selectedPatientRef.current && currentUserRef.current && data.parameters) {
-            setSelectedPatient({
-              ...selectedPatientRef.current,
-              parameters: data.parameters
-            });
+          if (data.parameters && loadBoardParamsCallbackRef.current) {
+            // Call the callback from ParametersTable to update local state with dirty flags
+            loadBoardParamsCallbackRef.current(data.parameters);
+            loadBoardParamsCallbackRef.current = null; // Clear the callback
             
-            // Also persist to localStorage
-            setSavedUsers((prev) => {
-              return prev.map((user) =>
-                user.username === currentUserRef.current
-                  ? { 
-                      ...user, 
-                      patientData: { 
-                        ...user.patientData, 
-                        parameters: data.parameters
-                      } 
-                    }
-                  : user
-              );
-            });
-            
-            console.log("Board parameters loaded successfully");
+            console.log("Board parameters loaded and marked as dirty");
           }
         } else {
           console.log("Message from Python:", rawData);
@@ -452,7 +437,10 @@ useEffect(() => {
     // via handleSendToPacemaker to separate persist vs transmit actions.
   };
 
-  const handleLoadBoardParameters = () => {
+  const handleLoadBoardParameters = (callback: (params: any) => void) => {
+    // Store the callback to use when response arrives
+    loadBoardParamsCallbackRef.current = callback;
+    
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const message = {
         type: "LOAD_BOARD_PARAMETERS_REQUEST"
