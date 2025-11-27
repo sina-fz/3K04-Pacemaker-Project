@@ -1,28 +1,30 @@
+"""
+Main Python middleware for routing DCM websocket traffic to and from
+serial communication traffic from the pacemaker.
+Launches on npm run dev, runs concurrently to localhost runtime.
+"""
+
 import asyncio
 import websockets
 import json
 import struct
 import serial
-import math # for ekg testing 
 import time
 
-connected = set()
+connected = set() # Contains active websockets
 device_connected = {}  # Track connection state per websocket
 
 
 
 class PacemakerInputs_template:
     def __init__(self):
-        self.port = "COM4" #CHANGE TO COM3
+        self.port = "COM4" #CHANGE TO COM PORT
         self.baudrate = 115200
         self.ser = serial.Serial(self.port, baudrate=self.baudrate, timeout=1)
         #self.ser = serial.serial_for_url("loop://",baudrate=self.baudrate, timeout=1) # for testing
 
-        self.write_busy = False
 
-        self.ready_for_EKG = False
-
-        self.serial_lock = asyncio.Lock()
+        self.serial_lock = asyncio.Lock() # Prevent bytestream corruption from parallel asynchronous writing 
         self.ekg_writer_task = None
         self.ekg_start_time = None  # Track when EKG streaming started for relative timestamps
 
@@ -68,9 +70,9 @@ class PacemakerInputs_template:
 
         self.modedict = {"AOO": 100, "VOO": 200, "AAI": 112, "VVI": 222, "AOOR": 1000, "AAIR": 1120, "VOOR": 2000, "VVIR": 2220, "DDDR": 3330}
 
+    # Responsible for updating Pacemaker object attributes with parameters recieved from DCM
     def mapData(self,message):
         in_data = json.loads(message)                                                     
-        print(in_data)
         for key, value in in_data.items():
             if hasattr(self, key):  # check if the attribute exists
                 setattr(self, key, value)
@@ -99,7 +101,6 @@ class PacemakerInputs_template:
             except serial.SerialException as e:
                 print(f"Serial failure on reopen: {e}")
         try:
-            self.write_busy = True
 
             # Start of packet 
             packet = bytearray()
@@ -163,7 +164,6 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
-            self.write_busy = False
 
             print("Parameters sent to pacemaker")
 
@@ -193,7 +193,6 @@ class PacemakerInputs_template:
             pass
             
         try:
-            self.write_busy = True
             # Set flag to prevent other tasks from consuming the response
             self.waiting_for_device_info = True
             
@@ -206,7 +205,6 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
-            self.write_busy = False
             print("Handshake Requested")
 
             return True
@@ -235,7 +233,6 @@ class PacemakerInputs_template:
             pass
             
         try:
-            self.write_busy = True
             # Set flag to prevent other tasks from consuming the response
             self.waiting_for_parameters = True
             
@@ -248,7 +245,6 @@ class PacemakerInputs_template:
             self.ser.write(packet)
             self.ser.flush()
 
-            self.write_busy = False
             print("Load Parameters Requested")
 
             return True
@@ -425,6 +421,14 @@ class PacemakerInputs_template:
                         # invalid packet, but port still active, keep looping
                         await asyncio.sleep(0.0001)
                         continue
+                        
+                    checksum_region = response_packet[10:]      # bytes 10..124 (length 115)
+                    checksum = sum(checksum_region) & 0xFF      # keep as uint8
+
+                    if checksum != 0:
+                        print(f"Checksum failure in device info packet (sum={checksum}). Ignoring packet.")
+                        await asyncio.sleep(0.0001)
+                        continue
                     
                     # Extract two uint32 values (little-endian)
                     self.serialNum = struct.unpack('<I', response_packet[2:6])[0]
@@ -479,15 +483,12 @@ class PacemakerInputs_template:
                 packet = bytearray(125)
                 packet[0] = 0x16
                 packet[1] = 0x36
-                packet[2] = 1 if start else 0
 
                 self.ser.write(packet)
                 self.ser.flush()
-                self.ready_for_EKG = True
                 return True
 
             except serial.SerialException:
-                self.ready_for_EKG = False
                 return False
     
 
@@ -509,11 +510,16 @@ class PacemakerInputs_template:
                     if not(packet[0] == 0x16 and packet[1] == 0x20):
                         await asyncio.sleep(0.0001)
                         continue
+
+                    if sum(packet[10:]) != 0:
+                        print("Invalid EKG packet: trailing bytes do not sum to 0")
+                        continue
                 
                     # Extract packet
                     self.atrDetect = struct.unpack('<f', packet[2:6])[0]
                     self.ventDetect  = struct.unpack('<f', packet[6:10])[0]
-                    
+                
+
                     # Calculate relative timestamp in milliseconds since stream started
                     current_time = time.time()
                     if self.ekg_start_time is None:
